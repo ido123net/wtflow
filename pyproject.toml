@@ -1,0 +1,33 @@
+[project]
+name = "wtflow"
+description = "Add your description here"
+readme = "README.md"
+authors = [{ name = "Ido Frenkel", email = "ido123net@gmail.com" }]
+requires-python = ">=3.9"
+dependencies = ["pydantic>=2.10.6", "pyyaml>=6.0.2"]
+dynamic = ["version"]
+
+[project.scripts]
+wtflow = "wtflow.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/wtflow/__init__.py"
+
+[dependency-groups]
+dev = [
+    "covdefaults>=2.3.0",
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.3",
+    "pytest-cov>=6.0.0",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.coverage.run]
+plugins = ["covdefaults"]
+source = ["src", "tests"]
