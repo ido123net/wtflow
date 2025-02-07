@@ -226,6 +226,7 @@ wheels = [
 
 [[package]]
 name = "wtflow"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
