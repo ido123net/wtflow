@@ -18,4 +18,4 @@ class Engine:
         except asyncio.CancelledError:
             return 1
         finally:
-            logger.debug(f"workflow:\n{self.workflow.model_dump_json(indent=2)}")
+            logger.debug(f"workflow:\n{self.workflow.model_dump_json(indent=2, exclude_defaults=True)}")
