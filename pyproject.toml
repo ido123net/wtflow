@@ -17,6 +17,9 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 path = "src/wtflow/__init__.py"
 
+[tool.hatch.build.targets.sdist]
+only-include = ["src"]
+
 [dependency-groups]
 dev = [
     "covdefaults>=2.3.0",
