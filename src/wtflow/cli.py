@@ -12,16 +12,6 @@ logger = logging.getLogger(__name__)
 
 async def run(engine: Engine) -> int:
     result = await engine.run()
-    logger.info(
-        f"workflow result: {result}\n"
-        f"{
-            engine.workflow.root.model_dump_json(
-                indent=2,
-                exclude_none=True,
-                exclude_defaults=True,
-            )
-        }"
-    )
     return result
 
 
