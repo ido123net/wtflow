@@ -3,7 +3,7 @@ name = "wtflow"
 description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "Ido Frenkel", email = "ido.frenkel@mobileye.com" }]
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 dependencies = ["pydantic>=2.10.6", "pyyaml>=6.0.2"]
 dynamic = ["version"]
 
@@ -34,3 +34,6 @@ line-length = 120
 [tool.coverage.run]
 plugins = ["covdefaults"]
 source = ["src", "tests"]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
