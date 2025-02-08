@@ -33,7 +33,7 @@ class Node(BaseModel):
     name: str
     outcome: Outcome = Outcome.INITIAL
     cmd: str | None = None
-    stop_on_failure: bool = False
+    stop_on_failure: bool = True
     timeout: int | None = None
     result: Result | None = None
     parallel: bool = False
