@@ -76,7 +76,6 @@ async def test_timeout_stop():
             name="Root Node",
             timeout=1,
             cmd="sleep 5",
-            stop_on_failure=True,
         ),
     )
     engine = Engine(wf)
@@ -91,6 +90,7 @@ async def test_timeout_continue():
             name="Root Node",
             timeout=1,
             cmd="sleep 5",
+            stop_on_failure=False,
         ),
     )
     engine = Engine(wf)
