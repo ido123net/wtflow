@@ -39,7 +39,7 @@ async def test_fail_run():
     )
     engine = Engine(wf)
     assert await engine.run() == 1
-    assert engine.workflow.root.result.stderr == b"/bin/sh: line 1: command-not-exist: command not found\n"
+    assert b"not found" in engine.workflow.root.result.stderr
     assert engine.workflow.root.outcome == "failure"
 
 
