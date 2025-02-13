@@ -20,9 +20,11 @@ only-include = ["src"]
 [dependency-groups]
 dev = [
     "covdefaults>=2.3.0",
+    "mypy>=1.15.0",
     "pytest>=8.3.4",
     "pytest-asyncio>=0.25.3",
     "pytest-cov>=6.0.0",
+    "types-pyyaml>=6.0.12.20241230",
 ]
 
 [tool.ruff]
@@ -34,3 +36,15 @@ source = ["src", "tests"]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
