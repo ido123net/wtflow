@@ -1,7 +1,9 @@
 import argparse
 import asyncio
 import logging
+import os
 import pathlib
+import sys
 from typing import Sequence
 
 from wtflow.engine import Engine
@@ -29,6 +31,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     status_parser.add_argument("id", help="ID of the workflow")
 
     args = parser.parse_args(argv)
+    sys.path.insert(0, os.getcwd())
 
     if args.verbose == 1:
         level = logging.INFO
