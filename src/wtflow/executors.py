@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Buffer
 import contextlib
 import io
 import logging
 import multiprocessing
 import traceback
 import typing
+from collections.abc import Buffer
 
 from wtflow.definitions import Outcome, Result
 from wtflow.executables import Command, PyFunc
