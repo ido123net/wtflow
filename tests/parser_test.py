@@ -1,6 +1,7 @@
 import pathlib
-from pydantic import ValidationError
+
 import pytest
+from pydantic import ValidationError
 
 from wtflow.nodes import Node
 from wtflow.parser import parse_yaml
