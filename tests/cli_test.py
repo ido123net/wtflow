@@ -1,6 +1,7 @@
 import pathlib
 
 import pytest
+
 from wtflow.cli import main
 
 
