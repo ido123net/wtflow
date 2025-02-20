@@ -3,6 +3,7 @@ import time
 import pytest
 
 from wtflow.engine import Engine
+from wtflow.executables import Command
 from wtflow.nodes import Node, PyFunc
 from wtflow.workflow import Workflow
 
@@ -15,13 +16,13 @@ async def test_run():
         root=Node(
             name="Root Node",
             children=[
-                Node(name="Node 1", cmd='echo "Hello 1"'),
+                Node(name="Node 1", executable=Command(cmd='echo "Hello 1"')),
                 Node(
                     name="Node 2",
                     parallel=True,
                     children=[
-                        Node(name="Node 2.1", cmd='echo "World 2.1"'),
-                        Node(name="Node 2.2", cmd='echo "World 2.2"'),
+                        Node(name="Node 2.1", executable=Command(cmd='echo "World 2.1"')),
+                        Node(name="Node 2.2", executable=Command(cmd='echo "World 2.2"')),
                     ],
                 ),
             ],
@@ -36,7 +37,7 @@ async def test_fail_run():
         name="Test Workflow",
         root=Node(
             name="fail node",
-            cmd="command-not-exist",
+            executable=Command(cmd="command-not-exist"),
             stop_on_failure=True,
         ),
     )
@@ -52,16 +53,16 @@ async def test_stop_on_failure():
         root=Node(
             name="Root Node",
             children=[
-                Node(name="Node 1", cmd='echo "Hello 1"'),
+                Node(name="Node 1", executable=Command(cmd='echo "Hello 1"')),
                 Node(
                     name="Node 2",
                     parallel=True,
                     children=[
-                        Node(name="Node 2.1", cmd='echo "World 2.1"'),
-                        Node(name="Node 2.2", cmd="command-not-exist", stop_on_failure=True),
+                        Node(name="Node 2.1", executable=Command(cmd='echo "World 2.1"')),
+                        Node(name="Node 2.2", executable=Command(cmd="command-not-exist"), stop_on_failure=True),
                     ],
                 ),
-                Node(name="Node 3", cmd='echo "Hello 3"'),
+                Node(name="Node 3", executable=Command(cmd='echo "Hello 3"')),
             ],
         ),
     )
@@ -78,7 +79,7 @@ async def test_timeout_stop():
         root=Node(
             name="Root Node",
             timeout=1,
-            cmd="sleep 5",
+            executable=Command(cmd="sleep 5"),
         ),
     )
     engine = Engine(wf)
@@ -92,7 +93,7 @@ async def test_timeout_continue():
         root=Node(
             name="Root Node",
             timeout=1,
-            cmd="sleep 5",
+            executable=Command(cmd="sleep 5"),
             stop_on_failure=False,
         ),
     )

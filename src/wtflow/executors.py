@@ -10,7 +10,7 @@ import typing
 from collections.abc import Buffer
 
 from wtflow.definitions import Outcome, Result
-from wtflow.executables import Command, PyFunc
+from wtflow.executables import Command, Executable, PyFunc
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from wtflow.nodes import Node
@@ -24,30 +24,62 @@ class CommandFailed(Exception):
     """Command failed."""
 
 
-async def command_execute(command: Command, timeout: int | None = None) -> Result:
-    process = None
-    try:
-        async with asyncio.timeout(timeout):
-            process = await _run_subprocess(command)
-            await process.wait()
-    except asyncio.TimeoutError:
-        if process:
-            process.terminate()
-            await process.wait()
-        raise
-
-    assert process.stdout
-    assert process.stderr
-    return Result(retcode=process.returncode, stdout=await process.stdout.read(), stderr=await process.stderr.read())
+async def async_execute(executalbe: Executable, timeout: int | None = None) -> Result:
+    if isinstance(executalbe, Command):
+        return await _async_subprocess_execute(executalbe, timeout)
+    elif isinstance(executalbe, PyFunc):
+        return await _async_py_func_execute(executalbe, timeout)
+    else:  # pragma: no cover
+        raise TypeError(f"Invalid executalbe type: {type(executalbe)}")
 
 
-async def _run_subprocess(command: Command) -> asyncio.subprocess.Process:
-    process_task = asyncio.create_subprocess_shell(
+async def _async_subprocess_execute(command: Command, timeout: int | None = None) -> Result:
+    process = await asyncio.create_subprocess_shell(
         command.cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    return await process_task
+
+    try:
+        async with asyncio.timeout(timeout):
+            retcode = await process.wait()
+            assert process.stdout
+            assert process.stderr
+            stdout, stderr = await asyncio.gather(process.stdout.read(), process.stderr.read())
+    except asyncio.TimeoutError:
+        process.terminate()
+        await process.wait()
+        raise
+
+    return Result(retcode=retcode, stdout=stdout, stderr=stderr)
+
+
+async def _async_py_func_execute(pyfunc: PyFunc, timeout: int | None = None) -> Result:
+    stdout = FileLikeQueue()
+    stderr = FileLikeQueue()
+
+    process = multiprocessing.Process(
+        target=_std_redirect,
+        args=(pyfunc.func, stdout, stderr, *pyfunc.args),
+        kwargs=pyfunc.kwargs,
+    )
+    process.start()
+
+    try:
+        async with asyncio.timeout(timeout):
+            while process.is_alive():
+                await asyncio.sleep(0.1)
+    except asyncio.TimeoutError:
+        process.terminate()
+        process.join(5)
+        if process.is_alive():  # pragma: no cover
+            process.kill()
+        raise
+
+    retcode = process.exitcode
+    stdout_data, stderr_data = await asyncio.gather(asyncio.to_thread(stdout.read), asyncio.to_thread(stderr.read))
+
+    return Result(retcode=retcode, stdout=stdout_data.encode(), stderr=stderr_data.encode())
 
 
 class FileLikeQueue(io.StringIO):
@@ -86,46 +118,15 @@ def _std_redirect(
             raise
 
 
-def py_func_execute(
-    func: typing.Callable[..., typing.Any] | str,
-    timeout: int | None = None,
-    *args: typing.Any,
-    **kwargs: typing.Any,
-) -> Result:
-    stdout = FileLikeQueue()
-    stderr = FileLikeQueue()
-
-    process = multiprocessing.Process(target=_std_redirect, args=(func, stdout, stderr, *args), kwargs=kwargs)
-    process.start()
-    process.join(timeout)
-    if process.is_alive():
-        process.terminate()
-        process.join(5)
-        if process.is_alive():  # pragma: no cover
-            process.kill()
-        raise asyncio.TimeoutError
-    return Result(retcode=process.exitcode, stdout=stdout.read().encode(), stderr=stderr.read().encode())
-
-
 class NodeExecutor:
     def __init__(self, node: Node):
         self.node = node
 
     async def execute(self) -> None:
         try:
-            if self.node.cmd:
-                logger.debug(f"Executing command: {self.node.cmd}")
-                self.node.result = await command_execute(Command(cmd=self.node.cmd), self.node.timeout)
-                if self.node.stop_on_failure and self.node.result.retcode:
-                    raise CommandFailed
-            elif self.node.executable and isinstance(self.node.executable, PyFunc):
+            if self.node.executable:
                 logger.debug(f"Executing function: {self.node.executable}")
-                self.node.result = py_func_execute(
-                    self.node.executable.func,
-                    self.node.timeout,
-                    *self.node.executable.args,
-                    **self.node.executable.kwargs,
-                )
+                self.node.result = await async_execute(self.node.executable, self.node.timeout)
                 logger.debug(f"Function returned: {self.node.result}")
                 if self.node.stop_on_failure and self.node.result.retcode:
                     raise CommandFailed
