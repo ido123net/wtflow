@@ -6,14 +6,20 @@ root:
   name: Root Node
   children:
     - name: Node 1
-      cmd: echo "Hello 1"
+      executable:
+        type: command
+        cmd: echo "Hello 1"
     - name: Node 2
       parallel: true
       children:
         - name: Node 2.1
-          cmd: echo "World 2.1"
+          executable:
+            type: command
+            cmd: echo "World 2.1"
         - name: Node 2.2
-          cmd: echo "World 2.2"
+          executable:
+            type: command
+            cmd: echo "World 2.2"
 """
 
 

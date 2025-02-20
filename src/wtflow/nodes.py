@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import Any, Union
 from uuid import uuid4
 
@@ -34,9 +35,12 @@ class Node(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def validate_cmd_or_executable(cls, data: Any) -> Any:
+    def validate_cmd_or_executable(cls, data: dict[str, Any]) -> Any:
         if data.get("cmd") and data.get("executable"):
             raise ValueError("`cmd` and `executable` are mutually exclusive")
+        if data.get("cmd"):
+            warnings.warn("`cmd` is deprecated, use `executable` instead", DeprecationWarning, stacklevel=3)
+            data["executable"] = Command(cmd=data.pop("cmd"))
         return data
 
     @property
