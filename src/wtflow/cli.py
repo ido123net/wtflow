@@ -39,7 +39,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         level = logging.DEBUG
 
     if args.verbose:
-        logging.basicConfig(level=level, format="%(taskName)s: %(message)s")
+        logging.basicConfig(level=level, format="|%(levelname)s| %(taskName)s: %(message)s")
 
     if args.command == "run":
         workflow = parse_yaml(args.file)

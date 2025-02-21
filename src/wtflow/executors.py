@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import io
 import logging
 import multiprocessing
+import os
 import traceback
 import typing
-from collections.abc import Buffer
 
 from wtflow.definitions import Outcome, Result
 from wtflow.executables import Command, Executable, PyFunc
@@ -15,7 +14,6 @@ from wtflow.executables import Command, Executable, PyFunc
 if typing.TYPE_CHECKING:  # pragma: no cover
     from wtflow.nodes import Node
 
-multiprocessing.set_start_method("spawn", force=True)
 
 logger = logging.getLogger(__name__)
 
@@ -54,16 +52,44 @@ async def _async_subprocess_execute(command: Command, timeout: int | None = None
     return Result(retcode=retcode, stdout=stdout, stderr=stderr)
 
 
-async def _async_py_func_execute(pyfunc: PyFunc, timeout: int | None = None) -> Result:
-    stdout = FileLikeQueue()
-    stderr = FileLikeQueue()
+def _target_wrapper(
+    func: typing.Callable[..., typing.Any] | str,
+    write_fd_out: int,
+    write_fd_err: int,
+) -> typing.Callable[..., typing.Any]:
+    assert not isinstance(func, str)
+
+    def inner(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        stdout = os.fdopen(write_fd_out, "w", buffering=1)
+        stderr = os.fdopen(write_fd_err, "w", buffering=1)
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            try:
+                return func(*args, **kwargs)
+            except Exception:
+                traceback.print_exc()
+                raise
+            finally:
+                stdout.close()
+                stderr.close()
+
+    return inner
+
+
+async def _async_py_func_execute(
+    pyfunc: PyFunc,
+    timeout: int | None = None,
+) -> Result:
+    read_fd_out, write_fd_out = os.pipe()
+    read_fd_err, write_fd_err = os.pipe()
 
     process = multiprocessing.Process(
-        target=_std_redirect,
-        args=(pyfunc.func, stdout, stderr, *pyfunc.args),
+        target=_target_wrapper(pyfunc.func, write_fd_out, write_fd_err),
+        args=pyfunc.args,
         kwargs=pyfunc.kwargs,
     )
     process.start()
+    os.close(write_fd_out)
+    os.close(write_fd_err)
 
     try:
         async with asyncio.timeout(timeout):
@@ -77,45 +103,13 @@ async def _async_py_func_execute(pyfunc: PyFunc, timeout: int | None = None) -> 
         raise
 
     retcode = process.exitcode
-    stdout_data, stderr_data = await asyncio.gather(asyncio.to_thread(stdout.read), asyncio.to_thread(stderr.read))
 
-    return Result(retcode=retcode, stdout=stdout_data.encode(), stderr=stderr_data.encode())
-
-
-class FileLikeQueue(io.StringIO):
-    def __init__(self) -> None:
-        super().__init__()
-        self.queue: multiprocessing.Queue[str] = multiprocessing.Queue()
-
-    def write(self, data: str | Buffer) -> int:
-        if isinstance(data, Buffer):  # pragma: no cover
-            data = str(data)
-        self.queue.put(data)
-        return len(data)
-
-    def close(self) -> None:
-        self.queue.close()
-
-    def read(self, size: int | None = None) -> str:
-        res = ""
-        while not self.queue.empty():
-            res += self.queue.get()
-        return res
-
-
-def _std_redirect(
-    func: typing.Callable[..., typing.Any],
-    stdout: FileLikeQueue,
-    stderr: FileLikeQueue,
-    *args: typing.Any,
-    **kwargs: typing.Any,
-) -> None:
-    with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-        try:
-            func(*args, **kwargs)
-        except Exception:
-            traceback.print_exc()
-            raise
+    with os.fdopen(read_fd_out, "r") as stdout, os.fdopen(read_fd_err, "r") as stderr:
+        return Result(
+            retcode=retcode,
+            stdout=stdout.read().encode(),
+            stderr=stderr.read().encode(),
+        )
 
 
 class NodeExecutor:
