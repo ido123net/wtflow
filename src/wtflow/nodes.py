@@ -1,51 +1,37 @@
 from __future__ import annotations
 
 import logging
-import warnings
-from typing import Any, Union
+from dataclasses import dataclass, field
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, model_validator
-
-from wtflow.definitions import Outcome, Result
-from wtflow.executables import Command, PyFunc
-from wtflow.executors import NodeExecutor
+from wtflow.executables import Executable
+from wtflow.executors import Result
 
 logger = logging.getLogger(__name__)
 
 
-class Node(BaseModel):
-    node_id: str = Field(default_factory=lambda: str(uuid4().hex), exclude=True)
+@dataclass
+class Node:
     name: str
-    outcome: Outcome = Outcome.INITIAL
-    cmd: str | None = None
-    executable: Union[PyFunc, Command] | None = Field(None, discriminator="type")
-    stop_on_failure: bool = True
-    timeout: int | None = None
+    executable: Executable | None = None
     result: Result | None = None
     parallel: bool = False
-    children: list[Node] = []
-    _parent: Node | None = None
+    children: list[Node] = field(default_factory=list)
 
-    def model_post_init(self, __context: Any) -> None:
+    _node_id: str = field(default_factory=lambda: str(uuid4().hex), repr=False)
+    _parent: Node | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
         if self.children:
             for child in self.children:
                 child._parent = self
-        return super().model_post_init(__context)
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate_cmd_or_executable(cls, data: dict[str, Any]) -> Any:
-        if data.get("cmd") and data.get("executable"):
-            raise ValueError("`cmd` and `executable` are mutually exclusive")
-        if data.get("cmd"):
-            warnings.warn("`cmd` is deprecated, use `executable` instead", DeprecationWarning, stacklevel=3)
-            data["executable"] = Command(cmd=data.pop("cmd"))
-        return data
 
     @property
     def parent(self) -> Node | None:
         return self._parent  # pragma: no cover
 
-    async def execute(self) -> None:
-        await NodeExecutor(self).execute()
+    def execute(self) -> None:
+        if self.executable:
+            logger.debug(f"Executing Node {self.name}: ({self.executable = })")
+            self.result = self.executable.run()
+            logger.debug(f"Node {self.name} ({self.result = })")
