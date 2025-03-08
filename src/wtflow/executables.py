@@ -1,41 +1,69 @@
-from enum import StrEnum, auto
-from typing import Annotated, Any, Callable, Literal
+from abc import ABC, abstractmethod
+from typing import Any, Callable, ParamSpec, TypeVar
 
-from pydantic import BaseModel, BeforeValidator, field_serializer
+from wtflow.executors import Executor, MultiprocessingExecutor, Result, SubprocessExecutor
 
-from wtflow.utils import load_func
-
-
-class ExecutalbeType(StrEnum):
-    COMMAND = auto()
-    PY_FUNC = auto()
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
-class Executable(BaseModel):
-    type: ExecutalbeType
+class Executable(ABC):
+    """Base class for an executable object."""
 
+    def __init__(self, timeout: float | None = None) -> None:
+        self.timeout = timeout
 
-class Command(Executable):
-    type: Literal[ExecutalbeType.COMMAND] = ExecutalbeType.COMMAND
-    cmd: str
+    @abstractmethod
+    def get_executor(self) -> Executor:
+        """Return the executor for the executable."""
 
-
-def _func_path(value: Callable[..., Any]) -> str:
-    return f"{value.__module__}.{value.__name__}"
+    def run(self) -> Result:
+        executor = self.get_executor()
+        executor.execute()
+        return Result(
+            returncode=executor.returncode,
+            stdout=executor.stdout,
+            stderr=executor.stderr,
+        )
 
 
 class PyFunc(Executable):
-    type: Literal[ExecutalbeType.PY_FUNC] = ExecutalbeType.PY_FUNC
-    func: Annotated[Callable[..., Any] | str, BeforeValidator(load_func)]
-    args: tuple[Any, ...] = ()
-    kwargs: dict[str, Any] = {}
+    """Represents a Python function as an executable object."""
 
-    @field_serializer("func", when_used="json")
-    def serialize_func(self, value: Callable[..., Any]) -> str:
-        return _func_path(value)
+    def __init__(
+        self,
+        func: Callable[..., Any],
+        *,
+        timeout: float | None = None,
+        args: tuple[Any, ...] = (),
+        kwargs: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(timeout)
+        self.func = func
+        self.args = args
+        self.kwargs: dict[str, Any] = kwargs or {}
 
-    def __str__(self) -> str:
-        args = ", ".join(repr(arg) for arg in self.args)
-        kwargs = ", ".join(f"{k}={v!r}" for k, v in self.kwargs.items())
-        assert not isinstance(self.func, str)
-        return f"{_func_path(self.func)}({args}, {kwargs})"
+    def get_executor(self) -> Executor:
+        return MultiprocessingExecutor(self)
+
+    def __repr__(self) -> str:
+        func_path = f"{self.func.__module__}.{self.func.__name__}"
+        return f"{self.__class__.__name__}(target={func_path}, args={self.args!r}, kwargs={self.kwargs!r})"
+
+
+class Command(Executable):
+    """Represents an external command as an executable object."""
+
+    def __init__(
+        self,
+        cmd: str,
+        timeout: float | None = None,
+    ) -> None:
+        super().__init__(timeout)
+        self.cmd = cmd
+
+    def get_executor(self) -> Executor:
+        return SubprocessExecutor(self)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(cmd={self.cmd!r})"
