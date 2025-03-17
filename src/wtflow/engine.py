@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import pathlib
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
@@ -10,16 +11,19 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+LOGS_DIR = pathlib.Path("logs")
+
 
 class Engine:
     def __init__(self, workflow: Workflow, stop_on_failure: bool = True):
         self.workflow = workflow
+        self._set_artifact_paths(self.workflow)
         self.stop_on_failure = stop_on_failure
 
     def execute_node(self, node: Node) -> int:
         failing_nodes = 0
         node.execute()
-        if node.result and node.result.returncode != 0:
+        if node.retcode and node.retcode != 0:
             failing_nodes += 1
         if self.stop_on_failure and failing_nodes:
             return failing_nodes
@@ -45,3 +49,13 @@ class Engine:
         else:
             logger.info("Workflow completed successfully.")
             return 0
+
+    def _set_artifact_paths(self, workflow: Workflow) -> None:
+        logger.debug(f"Setting artifact paths for workflow: {workflow.id}")
+        for node in workflow.nodes:
+            for artifact in node.artifacts:
+                if artifact.file_path is not None:
+                    continue
+                artifact.path = LOGS_DIR / workflow.id / node.id / f"{artifact.name}.{artifact.type.value}"
+                artifact.path.parent.mkdir(parents=True, exist_ok=True)
+                logger.debug(f"Set artifact path: {artifact.path}")

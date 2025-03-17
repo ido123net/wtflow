@@ -1,5 +1,6 @@
 import time
 
+from wtflow.artifact import Artifact
 from wtflow.engine import Engine
 from wtflow.executables import Command, PyFunc
 from wtflow.nodes import Node
@@ -38,7 +39,7 @@ def test_fail_run():
     )
     engine = Engine(wf)
     assert engine.run() == 1
-    assert b"not found" in engine.workflow.root.result.stderr
+    assert b"not found" in engine.workflow.root.stderr
 
 
 def test_stop_on_failure():
@@ -62,7 +63,7 @@ def test_stop_on_failure():
     )
     engine = Engine(wf)
     assert engine.run() == 1
-    assert engine.workflow.root.children[2].result is None
+    assert engine.workflow.root.children[2].retcode is None
 
 
 def test_timeout():
@@ -91,8 +92,8 @@ def test_PyFunc_executable():
     )
     engine = Engine(wf)
     assert engine.run() == 0
-    assert engine.workflow.root.result.stdout == b"(1, 2) {'a': 1}\n"
-    assert engine.workflow.root.result.stderr == b""
+    assert engine.workflow.root.stdout == b"(1, 2) {'a': 1}\n"
+    assert engine.workflow.root.stderr == b""
 
 
 def f_sleep():
@@ -134,7 +135,7 @@ def test_partial_stdout():
     )
     engine = Engine(wf)
     engine.run()
-    assert engine.workflow.root.result.stdout == b"Hello\n"
+    assert engine.workflow.root.stdout == b"Hello\n"
 
 
 def test_continue_on_failure():
@@ -150,4 +151,20 @@ def test_continue_on_failure():
     )
     engine = Engine(wf, stop_on_failure=False)
     assert engine.run() == 1
-    assert engine.workflow.root.children[1].result.stdout == b"run anyway\n"
+    assert engine.workflow.root.children[1].stdout == b"run anyway\n"
+
+
+def test_artifact(tmp_path):
+    file_path = tmp_path / "test.txt"
+    artifact = Artifact("test", file_path=file_path)
+    wf = Workflow(
+        name="Test Workflow",
+        root=Node(
+            name="Root Node",
+            executable=Command(cmd=f"echo 'Hello' > {artifact.path}"),
+            artifacts=[artifact],
+        ),
+    )
+    enine = Engine(wf)
+    assert enine.run() == 0
+    assert artifact.data == b"Hello\n"

@@ -1,7 +1,12 @@
-from abc import ABC, abstractmethod
-from typing import Any, Callable, ParamSpec, TypeVar
+from __future__ import annotations
 
-from wtflow.executors import Executor, MultiprocessingExecutor, Result, SubprocessExecutor
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, Callable, ParamSpec, TypeVar
+
+from wtflow.executors import Executor, MultiprocessingExecutor, SubprocessExecutor
+
+if TYPE_CHECKING:
+    from wtflow.nodes import Node
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -12,19 +17,26 @@ class Executable(ABC):
 
     def __init__(self, timeout: float | None = None) -> None:
         self.timeout = timeout
+        self.executor = self.get_executor()
+        self.retcode: int | None = None
+        self._node: Node | None = None
 
     @abstractmethod
     def get_executor(self) -> Executor:
         """Return the executor for the executable."""
 
-    def run(self) -> Result:
-        executor = self.get_executor()
-        executor.execute()
-        return Result(
-            returncode=executor.returncode,
-            stdout=executor.stdout,
-            stderr=executor.stderr,
-        )
+    def set_node(self, node: Node) -> None:
+        self._node = node
+
+    @property
+    def node(self) -> Node:
+        if self._node is None:  # pragma: no cover
+            raise ValueError("Node not set")
+        return self._node
+
+    def execute(self) -> int | None:
+        self.executor.execute()
+        return self.executor._returncode
 
 
 class PyFunc(Executable):
