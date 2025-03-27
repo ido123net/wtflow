@@ -4,7 +4,9 @@ description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "Ido Frenkel", email = "ido123net@gmail.com" }]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "sqlalchemy>=2.0.39",
+]
 version = "0.1.0"
 
 [project.scripts]
