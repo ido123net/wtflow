@@ -1,15 +1,24 @@
+import os
 import time
 
-from wtflow.artifact import Artifact
+import pytest
+
 from wtflow.engine import Engine
 from wtflow.executables import Command, PyFunc
 from wtflow.nodes import Node
 from wtflow.workflow import Workflow
 
 
+@pytest.fixture(autouse=True, scope="session")
+def set_env(tmp_path_factory):
+    data_dir = tmp_path_factory.mktemp("data")
+    os.environ["WTFLOW_ARTIFACTS_DIR"] = str(data_dir)
+    os.environ["WTFLOW_DB_URL"] = f"sqlite:///{data_dir}/test.db"
+
+
 def test_run():
     wf = Workflow(
-        name="Test Workflow",
+        name="test run",
         root=Node(
             name="Root Node",
             children=[
@@ -31,7 +40,7 @@ def test_run():
 
 def test_fail_run():
     wf = Workflow(
-        name="Test Workflow",
+        name="test fail run",
         root=Node(
             name="fail node",
             executable=Command(cmd="command-not-exist"),
@@ -44,7 +53,7 @@ def test_fail_run():
 
 def test_stop_on_failure():
     wf = Workflow(
-        name="Test Workflow",
+        name="test stop on failure",
         root=Node(
             name="Root Node",
             children=[
@@ -68,10 +77,10 @@ def test_stop_on_failure():
 
 def test_timeout():
     wf = Workflow(
-        name="Test Workflow",
+        name="test timeout",
         root=Node(
             name="Root Node",
-            executable=Command(cmd="sleep 5", timeout=1),
+            executable=Command(cmd="sleep 5", timeout=0.1),
         ),
     )
     engine = Engine(wf)
@@ -84,7 +93,7 @@ def func(*args, **kwargs):
 
 def test_PyFunc_executable():
     wf = Workflow(
-        name="Test Workflow",
+        name="test PyFunc executable",
         root=Node(
             name="Root Node",
             executable=PyFunc(func, args=(1, 2), kwargs={"a": 1}),
@@ -96,29 +105,32 @@ def test_PyFunc_executable():
     assert engine.workflow.root.stderr == b""
 
 
-def f_sleep():
-    time.sleep(2)
-    raise Exception("fail")
+def _f_sleep():
+    time.sleep(2)  # pragma: no cover (for testing timeout)
 
 
 def test_PyFunc_timeout():
     wf = Workflow(
-        name="Test Workflow",
+        name="test PyFunc timeout",
         root=Node(
             name="Root Node",
-            executable=PyFunc(f_sleep, timeout=1),
+            executable=PyFunc(_f_sleep, timeout=0.1),
         ),
     )
     engine = Engine(wf)
     assert engine.run() == 1
 
 
-def test_PyFunc_exeption():
+def _f_exception():
+    raise Exception("Test exception")
+
+
+def test_PyFunc_exception():
     wf = Workflow(
-        name="Test Workflow",
+        name="test PyFunc exception",
         root=Node(
             name="Root Node",
-            executable=PyFunc(func=f_sleep),
+            executable=PyFunc(func=_f_exception),
         ),
     )
     engine = Engine(wf)
@@ -127,10 +139,29 @@ def test_PyFunc_exeption():
 
 def test_partial_stdout():
     wf = Workflow(
-        name="Test Workflow",
+        name="test partial stdout",
         root=Node(
             name="Root Node",
-            executable=Command(cmd="echo 'Hello' && sleep 2 && echo 'World'", timeout=1),
+            executable=Command(cmd="echo 'Hello' && sleep 2 && echo 'World'", timeout=0.1),
+        ),
+    )
+    engine = Engine(wf)
+    engine.run()
+    assert engine.workflow.root.stdout == b"Hello\n"
+
+
+def _f_partial_stdout():  # pragma: no cover (this will only run partially)
+    print("Hello")
+    time.sleep(2)
+    print("World")
+
+
+def test_partial_stdout_pyfunc():
+    wf = Workflow(
+        name="test partial stdout pyfunc",
+        root=Node(
+            name="Root Node",
+            executable=PyFunc(_f_partial_stdout, timeout=0.1),
         ),
     )
     engine = Engine(wf)
@@ -140,7 +171,7 @@ def test_partial_stdout():
 
 def test_continue_on_failure():
     wf = Workflow(
-        name="Test Workflow",
+        name="test continue on failure",
         root=Node(
             name="Root Node",
             children=[
@@ -154,17 +185,15 @@ def test_continue_on_failure():
     assert engine.workflow.root.children[1].stdout == b"run anyway\n"
 
 
-def test_artifact(tmp_path):
-    file_path = tmp_path / "test.txt"
-    artifact = Artifact("test", file_path=file_path)
+def test_without_config(monkeypatch, capsys):
+    monkeypatch.delenv("WTFLOW_ARTIFACTS_DIR")
     wf = Workflow(
-        name="Test Workflow",
+        name="test without config",
         root=Node(
             name="Root Node",
-            executable=Command(cmd=f"echo 'Hello' > {artifact.path}"),
-            artifacts=[artifact],
+            executable=Command(cmd="echo 'Hello world'"),
         ),
     )
-    enine = Engine(wf)
-    assert enine.run() == 0
-    assert artifact.data == b"Hello\n"
+    engine = Engine(wf)
+    assert engine.run() == 0
+    assert capsys.readouterr().out == "Hello world\n"
