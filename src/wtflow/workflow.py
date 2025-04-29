@@ -1,21 +1,17 @@
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass, field
+from typing import Iterator
 
 from wtflow.nodes import Node
-from wtflow.utils import create_uuid
 
 
 @dataclass
 class Workflow:
+    name: str
     root: Node
-    name: str | None = None
-
-    _id: str = field(default_factory=create_uuid, repr=False)
-
-    @property
-    def id(self) -> str:
-        return self._id
+    id: int | None = field(default=None, repr=False, init=False)
 
     @property
     def nodes(self) -> list[Node]:
@@ -27,10 +23,14 @@ class Workflow:
             nodes.extend(self._get_nodes(child))
         return nodes
 
-    def _init_node(self, node: Node) -> None:
-        node._workflow = self
+    def _init_node(self, node: Node, counter: Iterator[int]) -> None:
+        node.lft = next(counter)
         for child in node.children:
-            self._init_node(child)
+            self._init_node(child, counter)
+        node.rgt = next(counter)
 
     def __post_init__(self) -> None:
-        self._init_node(self.root)
+        counter = itertools.count(1)
+        self._init_node(self.root, counter)
+        for node in self.nodes:
+            node.set_workflow(self)

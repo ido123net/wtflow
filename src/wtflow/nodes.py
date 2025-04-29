@@ -4,9 +4,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from wtflow.artifact import Artifact, create_default_artifacts
+from wtflow.artifact import Artifact, StreamArtifact, create_default_artifacts
 from wtflow.executables import Executable
-from wtflow.utils import create_uuid
 
 if TYPE_CHECKING:
     from wtflow.workflow import Workflow
@@ -19,52 +18,49 @@ class Node:
     name: str
     executable: Executable | None = None
     retcode: int | None = None
+    stdout: bytes | None = None
+    stderr: bytes | None = None
     parallel: bool = False
     children: list[Node] = field(default_factory=list)
     artifacts: list[Artifact] = field(default_factory=list)
+    id: int | None = field(default=None, repr=False, init=False)
+    _workflow: Workflow | None = field(default=None, repr=False, init=False)
 
-    _id: str = field(default_factory=create_uuid, repr=False)
-    _workflow: Workflow | None = field(default=None, repr=False)
-    _parent: Node | None = field(default=None, repr=False)
+    lft: int | None = field(default=None, repr=False)
+    rgt: int | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if "stdout" in self._artifact_dict or "stderr" in self._artifact_dict:
             raise ValueError("`stdout` and `stderr` are reserved artifact names")
-        self.artifacts = self.artifacts + create_default_artifacts()
         if self.executable:
+            self.artifacts = [*self.artifacts, *create_default_artifacts()]
             self.executable.set_node(self)
-        if self.children:
-            for child in self.children:
-                child._parent = self
 
     @property
-    def parent(self) -> Node | None:
-        return self._parent  # pragma: no cover
-
-    @property
-    def id(self) -> str:
-        return self._id
-
-    @property
-    def _artifact_dict(self) -> dict[str, Artifact]:
+    def _artifact_dict(self) -> dict[str, Artifact | StreamArtifact]:
         return {artifact.name: artifact for artifact in self.artifacts}
 
     @property
-    def stdout_artifact(self) -> Artifact:
-        return self._artifact_dict["stdout"]
+    def stdout_artifact(self) -> StreamArtifact:
+        res = self._artifact_dict["stdout"]
+        if TYPE_CHECKING:
+            assert isinstance(res, StreamArtifact)
+        return res
 
     @property
-    def stderr_artifact(self) -> Artifact:
-        return self._artifact_dict["stderr"]
-
-    @property
-    def stdout(self) -> bytes:
-        return self.stdout_artifact.data
-
-    @property
-    def stderr(self) -> bytes:
-        return self.stderr_artifact.data
+    def stderr_artifact(self) -> StreamArtifact:
+        res = self._artifact_dict["stderr"]
+        if TYPE_CHECKING:
+            assert isinstance(res, StreamArtifact)
+        return res
 
     def execute(self) -> None:
         if self.executable:
-            self.retcode = self.executable.execute()
+            self.retcode, self.stdout, self.stderr = self.executable.execute()
+
+    def set_workflow(self, workflow: Workflow) -> None:
+        self._workflow = workflow
+
+    @property
+    def stream_artifacts(self) -> tuple[StreamArtifact, StreamArtifact]:
+        return self.stdout_artifact, self.stderr_artifact

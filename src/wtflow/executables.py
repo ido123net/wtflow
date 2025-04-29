@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, ParamSpec, TypeVar
 
 from wtflow.executors import Executor, MultiprocessingExecutor, SubprocessExecutor
@@ -12,13 +13,13 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
+@dataclass
 class Executable(ABC):
     """Base class for an executable object."""
 
     def __init__(self, timeout: float | None = None) -> None:
         self.timeout = timeout
         self.executor = self.get_executor()
-        self.retcode: int | None = None
         self._node: Node | None = None
 
     @abstractmethod
@@ -34,9 +35,9 @@ class Executable(ABC):
             raise ValueError("Node not set")
         return self._node
 
-    def execute(self) -> int | None:
+    def execute(self) -> tuple[int | None, bytes, bytes]:
         self.executor.execute()
-        return self.executor._returncode
+        return self.executor.wait()
 
 
 class PyFunc(Executable):

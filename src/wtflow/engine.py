@@ -5,24 +5,35 @@ import pathlib
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 
+from wtflow.config import Config
+from wtflow.db.client import DBClient
+
 if TYPE_CHECKING:
     from wtflow.nodes import Node
     from wtflow.workflow import Workflow
 
 logger = logging.getLogger(__name__)
 
-LOGS_DIR = pathlib.Path("logs")
-
 
 class Engine:
     def __init__(self, workflow: Workflow, stop_on_failure: bool = True):
         self.workflow = workflow
-        self._set_artifact_paths(self.workflow)
+        self.conf = Config.load()
+        self.db = DBClient(self.conf.db.url)
+        with self.db.Session() as session:
+            self.db.add_workflow(session, workflow)
+            session.commit()
+            for node in workflow.nodes:
+                self._set_artifact_paths(node)
+
         self.stop_on_failure = stop_on_failure
 
     def execute_node(self, node: Node) -> int:
         failing_nodes = 0
-        node.execute()
+        with self.db.Session() as session:
+            self.db.start_execution(session, node)
+            node.execute()
+            self.db.end_execution(session, node)
         if node.retcode and node.retcode != 0:
             failing_nodes += 1
         if self.stop_on_failure and failing_nodes:
@@ -50,12 +61,18 @@ class Engine:
             logger.info("Workflow completed successfully.")
             return 0
 
-    def _set_artifact_paths(self, workflow: Workflow) -> None:
-        logger.debug(f"Setting artifact paths for workflow: {workflow.id}")
-        for node in workflow.nodes:
-            for artifact in node.artifacts:
-                if artifact.file_path is not None:
-                    continue
-                artifact.path = LOGS_DIR / workflow.id / node.id / f"{artifact.name}.{artifact.type.value}"
-                artifact.path.parent.mkdir(parents=True, exist_ok=True)
-                logger.debug(f"Set artifact path: {artifact.path}")
+    @property
+    def artifacts_dir(self) -> pathlib.Path | None:
+        if not self.conf.storage.artifacts_dir:
+            return None
+
+        return self.conf.storage.artifacts_dir / str(self.workflow.id)
+
+    def _set_artifact_paths(self, node: Node) -> None:
+        if not self.artifacts_dir:
+            return
+
+        node_path = self.artifacts_dir / str(node.id)
+
+        for artifact in node.artifacts:
+            artifact.path = node_path / f"{artifact.name}.{artifact.type.value}"
