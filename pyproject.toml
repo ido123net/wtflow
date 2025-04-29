@@ -5,6 +5,7 @@ readme = "README.md"
 authors = [{ name = "Ido Frenkel", email = "ido123net@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = [
+    "backend",
     "sqlalchemy>=2.0.39",
 ]
 version = "0.1.0"
@@ -49,3 +50,6 @@ warn_unused_ignores = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+[tool.uv.sources]
+backend = { path = "backend" }
