@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 import pathlib
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Generator
 
 from wtflow.config import Config
 from wtflow.db.client import DBClient
@@ -16,40 +17,52 @@ logger = logging.getLogger(__name__)
 
 
 class Engine:
-    def __init__(self, workflow: Workflow, stop_on_failure: bool = True):
+    def __init__(self, workflow: Workflow, config: Config | None = None) -> None:
         self.workflow = workflow
-        self.conf = Config.load()
-        self.db = DBClient(self.conf.db.url)
-        with self.db.Session() as session:
-            self.db.add_workflow(session, workflow)
-            session.commit()
-            for node in workflow.nodes:
-                self._set_artifact_paths(node)
+        self.config = config or Config.from_env()
+        self.db = DBClient(self.config.db.url) if self.config.db.url else None
+        if self.db:
+            with self.db.Session() as session:
+                self.db.add_workflow(session, workflow)
+                session.commit()
 
-        self.stop_on_failure = stop_on_failure
+        self._set_artifact_paths(workflow.root)
 
-    def execute_node(self, node: Node) -> int:
+    @contextmanager
+    def _execute(self, node: Node) -> Generator[None, None, None]:
+        if self.db:
+            with self.db.Session() as session:
+                self.db.start_execution(session, node)
+                yield
+                self.db.end_execution(session, node)
+        else:
+            yield
+
+    def execute_node(self, node: Node, parallel: bool = False) -> int:
+        if not parallel:
+            logger.debug(f"Executing node {node.name!r}")
         failing_nodes = 0
-        with self.db.Session() as session:
-            self.db.start_execution(session, node)
+        with self._execute(node):
             node.execute()
-            self.db.end_execution(session, node)
         if node.retcode and node.retcode != 0:
+            logger.debug(f"Node {node.name!r} failed with return code {node.retcode}")
             failing_nodes += 1
-        if self.stop_on_failure and failing_nodes:
+        if not self.config.run.ignore_failure and failing_nodes > self.config.run.max_fail:
             return failing_nodes
         return failing_nodes + self.execute_children(node.parallel, node.children)
 
     def execute_children(self, parallel: bool, children: list[Node]) -> int:
         if parallel:
+            logger.debug(f"Executing {', '.join(repr(child.name) for child in children)} children in parallel")
             with ThreadPoolExecutor() as pool:
-                return sum(pool.map(self.execute_node, children))
+                fs = [pool.submit(self.execute_node, child, parallel=True) for child in children]
+                return sum(f.result() for f in fs)
         else:
             failing_nodes = 0
             for child in children:
                 failing_nodes += self.execute_node(child)
-                if self.stop_on_failure and failing_nodes:
-                    return failing_nodes
+                if not self.config.run.ignore_failure and failing_nodes > self.config.run.max_fail:
+                    break
             return failing_nodes
 
     def run(self) -> int:
@@ -63,16 +76,26 @@ class Engine:
 
     @property
     def artifacts_dir(self) -> pathlib.Path | None:
-        if not self.conf.storage.artifacts_dir:
+        if not self.config.storage.artifacts_dir:
             return None
 
-        return self.conf.storage.artifacts_dir / str(self.workflow.id)
+        return self.config.storage.artifacts_dir / self.workflow.id
 
-    def _set_artifact_paths(self, node: Node) -> None:
+    def _set_artifact_paths(self, node: Node, base_path: pathlib.Path | None = None) -> None:
         if not self.artifacts_dir:
             return
 
-        node_path = self.artifacts_dir / str(node.id)
+        if base_path is None:
+            base_path = self.artifacts_dir
+
+        node_path = base_path / node.id
+        node_path.mkdir(parents=True)
 
         for artifact in node.artifacts:
             artifact.path = node_path / f"{artifact.name}.{artifact.type.value}"
+
+        for child in node.children:
+            if self.db:
+                self._set_artifact_paths(child, self.artifacts_dir)
+            else:
+                self._set_artifact_paths(child, node_path)

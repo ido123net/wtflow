@@ -2,15 +2,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, Callable
 
 from wtflow.executors import Executor, MultiprocessingExecutor, SubprocessExecutor
 
 if TYPE_CHECKING:
     from wtflow.nodes import Node
-
-P = ParamSpec("P")
-R = TypeVar("R")
 
 
 @dataclass

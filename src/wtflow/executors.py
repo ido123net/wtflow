@@ -6,7 +6,6 @@ import os
 import signal
 import subprocess
 import sys
-import traceback
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from typing import IO, TYPE_CHECKING, Callable
@@ -79,7 +78,6 @@ class MultiprocessingExecutor(Executor):
             try:
                 self.executable.func(*self.executable.args, **self.executable.kwargs)
             except Exception:
-                traceback.print_exc()
                 raise
             finally:
                 sys.stdout.close()

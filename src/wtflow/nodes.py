@@ -23,7 +23,7 @@ class Node:
     parallel: bool = False
     children: list[Node] = field(default_factory=list)
     artifacts: list[Artifact] = field(default_factory=list)
-    id: int | None = field(default=None, repr=False, init=False)
+    _id: int | None = field(default=None, repr=False, init=False)
     _workflow: Workflow | None = field(default=None, repr=False, init=False)
 
     lft: int | None = field(default=None, repr=False)
@@ -53,6 +53,10 @@ class Node:
         if TYPE_CHECKING:
             assert isinstance(res, StreamArtifact)
         return res
+
+    @property
+    def id(self) -> str:
+        return str(self._id) if self._id else self.name
 
     def execute(self) -> None:
         if self.executable:
