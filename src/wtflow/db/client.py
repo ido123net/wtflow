@@ -22,7 +22,7 @@ class DBClient:
         wf = db.Workflow(name=workflow.name)
         session.add(wf)
         session.flush()
-        workflow.id = wf.id
+        workflow._id = wf.id
         for node in workflow.nodes:
             self.add_node(session, node, wf.id)
         session.commit()
@@ -36,7 +36,7 @@ class DBClient:
         )
         session.add(n)
         session.flush()
-        node.id = n.id
+        node._id = n.id
         for artifact in node.artifacts:
             self.add_artifact(session, artifact, n.id)
 

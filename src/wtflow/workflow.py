@@ -11,11 +11,15 @@ from wtflow.nodes import Node
 class Workflow:
     name: str
     root: Node
-    id: int | None = field(default=None, repr=False, init=False)
+    _id: int | None = field(default=None, repr=False, init=False)
 
     @property
     def nodes(self) -> list[Node]:
         return self._get_nodes(self.root)
+
+    @property
+    def id(self) -> str:
+        return str(self._id) if self._id else self.name
 
     def _get_nodes(self, node: Node) -> list[Node]:
         nodes = [node]

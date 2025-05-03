@@ -21,6 +21,7 @@ class Artifact:
     file_path: pathlib.Path | None = None
 
     _opened: bool = field(default=False, init=False, repr=False)
+    _data: bytes = field(default=b"", init=False, repr=False)
 
     @property
     def path(self) -> pathlib.Path:
@@ -32,21 +33,25 @@ class Artifact:
     def path(self, value: pathlib.Path) -> None:
         self.file_path = value
 
-    def write(self, data: bytes) -> None:
-        if not self._opened:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            self._opened = True
+    @property
+    def data(self) -> bytes:
+        return self._data
 
+    def write(self, data: bytes) -> None:
+        self._data += data
+        self._write_to_file(data)
+
+    def _write_to_file(self, data: bytes) -> None:
         with self.path.open("ab") as f:
             f.write(data)
 
 
 class StreamArtifact(Artifact):
-    def write(self, data: bytes) -> None:
+    def _write_to_file(self, data: bytes) -> None:
         if self.file_path is None:
             getattr(sys, self.name).buffer.write(data)
         else:
-            super().write(data)
+            super()._write_to_file(data)
 
 
 def create_default_artifacts() -> list[StreamArtifact]:

@@ -2,66 +2,76 @@ from __future__ import annotations
 
 import os
 import pathlib
-from dataclasses import dataclass
-from enum import Enum
-
-DEFAULT_DATABASE_URL = "sqlite:///wtflow.db"
-
-
-class Environment(str, Enum):
-    DEVELOPMENT = "development"
-    TESTING = "testing"
-    PRODUCTION = "production"
+from dataclasses import dataclass, field
 
 
 @dataclass
 class DatabaseConfig:
-    """Database configuration settings"""
-
-    url: str
+    url: str | None = None
 
     @classmethod
     def from_env(cls) -> DatabaseConfig:
-        """Create database config from environment variables"""
-        return cls(url=os.environ.get("WTFLOW_DB_URL", DEFAULT_DATABASE_URL))
+        return cls(url=os.environ.get("WTFLOW_DB_URL"))
 
 
 @dataclass
 class StorageConfig:
-    """Storage configuration settings"""
-
     artifacts_dir: pathlib.Path | None = None
 
     @classmethod
     def from_env(cls) -> StorageConfig:
-        """Create storage config from environment variables"""
         artifact_dir_env = os.environ.get("WTFLOW_ARTIFACTS_DIR")
-        if not artifact_dir_env:
-            return cls()
+        artifacts_dir = pathlib.Path(artifact_dir_env) if artifact_dir_env else None
 
-        artifact_dir = pathlib.Path(artifact_dir_env).resolve()
-        artifact_dir.mkdir(parents=True, exist_ok=True)
-        config = cls(artifacts_dir=artifact_dir)
+        return cls(artifacts_dir=artifacts_dir)
 
-        return config
+
+@dataclass
+class RunConfig:
+    ignore_failure: bool = False
+    max_fail: int = 0
+
+    @classmethod
+    def from_env(cls) -> RunConfig:
+        ignore_failure_env = os.environ.get("WTFLOW_IGNORE_FAILURE")
+        if ignore_failure_env and ignore_failure_env.lower() not in {"0", "1", "true", "false"}:
+            raise ValueError("WTFLOW_IGNORE_FAILURE must be one of: 0, 1, true, false")
+        else:
+            ignore_failure = ignore_failure_env is not None and ignore_failure_env.lower() in {"1", "true"}
+
+        max_fail = int(os.environ.get("WTFLOW_MAX_FAIL", 0))
+
+        return cls(ignore_failure=ignore_failure, max_fail=max_fail)
 
 
 @dataclass
 class Config:
-    """Global configuration settings"""
-
-    env: Environment
-    db: DatabaseConfig
-    storage: StorageConfig
+    db: DatabaseConfig = field(default_factory=DatabaseConfig)
+    storage: StorageConfig = field(default_factory=StorageConfig)
+    run: RunConfig = field(default_factory=RunConfig)
 
     @classmethod
-    def load(cls, env: str | None = None) -> Config:
-        """Load configuration from environment variables"""
-        env_value = env or os.environ.get("WTFLOW_ENV", "development")
-        environment = Environment(env_value)
-
+    def from_env(cls) -> Config:
         return cls(
-            env=environment,
             db=DatabaseConfig.from_env(),
             storage=StorageConfig.from_env(),
+            run=RunConfig.from_env(),
+        )
+
+    @classmethod
+    def from_ini(cls, ini_path: str | pathlib.Path) -> Config:
+        import configparser
+
+        config = configparser.ConfigParser()
+        config.read(ini_path)
+
+        db_url = config.get("database", "url", fallback=None)
+        artifacts_dir = config.get("storage", "artifacts_dir", fallback=None)
+        ignore_failure = config.getboolean("run", "ignore_failure", fallback=False)
+        max_fail = config.getint("run", "max_fail", fallback=0)
+
+        return cls(
+            db=DatabaseConfig(url=db_url),
+            storage=StorageConfig(artifacts_dir=pathlib.Path(artifacts_dir) if artifacts_dir else None),
+            run=RunConfig(ignore_failure=ignore_failure, max_fail=max_fail),
         )
