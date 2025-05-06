@@ -4,10 +4,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable
 
-from wtflow.executors import Executor, MultiprocessingExecutor, SubprocessExecutor
+from wtflow.infra.executors import Executor, MultiprocessingExecutor, SubprocessExecutor
 
 if TYPE_CHECKING:
-    from wtflow.nodes import Node
+    from wtflow.infra.nodes import Node
 
 
 @dataclass

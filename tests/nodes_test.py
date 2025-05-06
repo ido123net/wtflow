@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from wtflow.artifact import Artifact
-from wtflow.nodes import Node
+from wtflow.infra.artifact import Artifact
+from wtflow.infra.nodes import Node
 
 
 @pytest.mark.parametrize("artifact_name", ["stdout", "stderr"])

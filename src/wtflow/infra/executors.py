@@ -11,8 +11,8 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import IO, TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
-    from wtflow.executables import Command, Executable, PyFunc
-    from wtflow.nodes import Node
+    from wtflow.infra.executables import Command, Executable, PyFunc
+    from wtflow.infra.nodes import Node
 
 
 logger = logging.getLogger(__name__)

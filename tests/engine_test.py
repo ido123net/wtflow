@@ -2,12 +2,12 @@ import time
 
 import pytest
 
-from wtflow.artifact import Artifact
 from wtflow.config import Config, DatabaseConfig, RunConfig, StorageConfig
-from wtflow.engine import Engine
-from wtflow.executables import Command, PyFunc
-from wtflow.nodes import Node
-from wtflow.workflow import Workflow
+from wtflow.infra.artifact import Artifact
+from wtflow.infra.engine import Engine
+from wtflow.infra.executables import Command, PyFunc
+from wtflow.infra.nodes import Node
+from wtflow.infra.workflow import Workflow
 
 
 @pytest.fixture()

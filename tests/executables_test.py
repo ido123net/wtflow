@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from wtflow.executables import Command, PyFunc
+from wtflow.infra.executables import Command, PyFunc
 
 
 def f(): ...
