@@ -4,7 +4,7 @@ import itertools
 from dataclasses import dataclass, field
 from typing import Iterator
 
-from wtflow.nodes import Node
+from wtflow.infra.nodes import Node
 
 
 @dataclass

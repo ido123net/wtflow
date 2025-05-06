@@ -10,8 +10,8 @@ from wtflow.config import Config
 from wtflow.db.client import DBClient
 
 if TYPE_CHECKING:
-    from wtflow.nodes import Node
-    from wtflow.workflow import Workflow
+    from wtflow.infra.nodes import Node
+    from wtflow.infra.workflow import Workflow
 
 logger = logging.getLogger(__name__)
 

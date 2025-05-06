@@ -4,11 +4,11 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from wtflow.artifact import Artifact, StreamArtifact, create_default_artifacts
-from wtflow.executables import Executable
+from wtflow.infra.artifact import Artifact, StreamArtifact, create_default_artifacts
+from wtflow.infra.executables import Executable
 
 if TYPE_CHECKING:
-    from wtflow.workflow import Workflow
+    from wtflow.infra.workflow import Workflow
 
 logger = logging.getLogger(__name__)
 
