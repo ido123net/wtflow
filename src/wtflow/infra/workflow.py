@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import itertools
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Iterator
 
 from wtflow.infra.nodes import Node
@@ -11,7 +11,6 @@ from wtflow.infra.nodes import Node
 class Workflow:
     name: str
     root: Node
-    _id: int | None = field(default=None, repr=False, init=False)
 
     @property
     def nodes(self) -> list[Node]:
@@ -19,7 +18,10 @@ class Workflow:
 
     @property
     def id(self) -> str:
-        return str(self._id) if self._id else self.name
+        return str(self._id) if hasattr(self, "_id") else self.name
+
+    def set_id(self, id: int) -> None:
+        self._id = id
 
     def _get_nodes(self, node: Node) -> list[Node]:
         nodes = [node]
@@ -38,3 +40,7 @@ class Workflow:
         self._init_node(self.root, counter)
         for node in self.nodes:
             node.set_workflow(self)
+
+    def print(self) -> None:
+        print(f"Workflow: {self.name}")
+        self.root.print()

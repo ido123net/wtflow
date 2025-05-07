@@ -51,7 +51,6 @@ class Artifact(Base):
     __tablename__ = "artifacts"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column()
-    type: Mapped[str] = mapped_column()
     node_id: Mapped[int] = mapped_column(ForeignKey("nodes.id"))
 
     node: Mapped[Node] = relationship("Node", back_populates="artifacts")

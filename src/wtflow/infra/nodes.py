@@ -5,9 +5,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from wtflow.infra.artifact import Artifact, StreamArtifact, create_default_artifacts
-from wtflow.infra.executables import Executable
 
 if TYPE_CHECKING:
+    from wtflow.infra.executables import Executable
     from wtflow.infra.workflow import Workflow
 
 logger = logging.getLogger(__name__)
@@ -22,9 +22,7 @@ class Node:
     stderr: bytes | None = None
     parallel: bool = False
     children: list[Node] = field(default_factory=list)
-    artifacts: list[Artifact] = field(default_factory=list)
-    _id: int | None = field(default=None, repr=False, init=False)
-    _workflow: Workflow | None = field(default=None, repr=False, init=False)
+    artifacts: list[Artifact] = field(default_factory=list, repr=False)
 
     lft: int | None = field(default=None, repr=False)
     rgt: int | None = field(default=None, repr=False)
@@ -56,7 +54,10 @@ class Node:
 
     @property
     def id(self) -> str:
-        return str(self._id) if self._id else self.name
+        return str(self._id) if hasattr(self, "_id") else self.name
+
+    def set_id(self, id: int) -> None:
+        self._id = id
 
     def execute(self) -> None:
         if self.executable:
@@ -68,3 +69,11 @@ class Node:
     @property
     def stream_artifacts(self) -> tuple[StreamArtifact, StreamArtifact]:
         return self.stdout_artifact, self.stderr_artifact
+
+    def print(self, level: int = 0) -> None:
+        indent = "  " * level
+        print(f"{indent}- {self.name}")
+        if self.executable:
+            print(f"{indent}  Executable: {self.executable}")
+        for child in self.children:
+            child.print(level + 1)

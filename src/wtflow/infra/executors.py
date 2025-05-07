@@ -6,11 +6,15 @@ import os
 import signal
 import subprocess
 import sys
+import traceback
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from typing import IO, TYPE_CHECKING, Callable
+from functools import partial
+from io import FileIO
+from typing import IO, TYPE_CHECKING, Callable, NamedTuple
 
 if TYPE_CHECKING:
+    from wtflow.infra.artifact import StreamArtifact
     from wtflow.infra.executables import Command, Executable, PyFunc
     from wtflow.infra.nodes import Node
 
@@ -18,7 +22,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _read_stream(stream: IO[bytes], callback: Callable[..., None]) -> bytes:
+class Result(NamedTuple):
+    retcode: int | None
+    stdout: bytes
+    stderr: bytes
+
+
+def _read_stream(stream: IO[bytes], callback: Callable[[bytes], None]) -> bytes:
     res = b""
     for line in iter(stream.readline, b""):
         callback(line)
@@ -42,21 +52,34 @@ class Executor(ABC):
         """Wait for process completion."""
 
     @property
-    def node(self) -> Node:
+    def node(self) -> Node | None:
         return self._executable.node
 
     def execute(self) -> None:
         self._execute()
 
-    def wait(self) -> tuple[int | None, bytes, bytes]:
-        stdout, stderr = self.node.stream_artifacts
+    def wait(self) -> Result:
+        stdout: FileIO | StreamArtifact
+        stderr: FileIO | StreamArtifact
+        if self.node:
+            stdout, stderr = self.node.stream_artifacts
+        else:
+            assert isinstance(sys.stdout.buffer, FileIO) and isinstance(sys.stderr.buffer, FileIO)
+            stdout, stderr = sys.stdout.buffer, sys.stderr.buffer
+
+        def _callback(stream: FileIO | StreamArtifact, line: bytes) -> None:
+            stream.write(line)
+
+        _stdout_callback = partial(_callback, stdout)
+        _stderr_callback = partial(_callback, stderr)
+
         assert self._stdout_stream is not None and self._stderr_stream is not None
         with ThreadPoolExecutor(max_workers=3) as pool:
             retcode_f = pool.submit(self._wait)
-            stdout_f = pool.submit(_read_stream, self._stdout_stream, lambda line: stdout.write(line))
-            stderr_f = pool.submit(_read_stream, self._stderr_stream, lambda line: stderr.write(line))
+            stdout_f = pool.submit(_read_stream, self._stdout_stream, _stdout_callback)
+            stderr_f = pool.submit(_read_stream, self._stderr_stream, _stderr_callback)
 
-        return retcode_f.result(), stdout_f.result(), stderr_f.result()
+        return Result(retcode_f.result(), stdout_f.result(), stderr_f.result())
 
 
 class MultiprocessingExecutor(Executor):
@@ -78,6 +101,7 @@ class MultiprocessingExecutor(Executor):
             try:
                 self.executable.func(*self.executable.args, **self.executable.kwargs)
             except Exception:
+                traceback.print_exc()
                 raise
             finally:
                 sys.stdout.close()
