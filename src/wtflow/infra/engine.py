@@ -17,16 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 class Engine:
-    def __init__(self, workflow: Workflow, config: Config | None = None) -> None:
+    def __init__(self, workflow: Workflow, config: Config | None = None, dry_run: bool = False) -> None:
         self.workflow = workflow
         self.config = config or Config.from_env()
         self.db = DBClient(self.config.db.url) if self.config.db.url else None
-        if self.db:
-            with self.db.Session() as session:
-                self.db.add_workflow(session, workflow)
-                session.commit()
-
-        self._set_artifact_paths(workflow.root)
+        self.dry_run = dry_run
 
     @contextmanager
     def _execute(self, node: Node) -> Generator[None, None, None]:
@@ -66,6 +61,16 @@ class Engine:
             return failing_nodes
 
     def run(self) -> int:
+        if self.dry_run:
+            self.workflow.print()
+            return 0
+
+        if self.db:
+            with self.db.Session() as session:
+                self.db.add_workflow(session, self.workflow)
+                session.commit()
+        self._set_artifact_paths(self.workflow.root)
+
         failing_nodes = self.execute_node(self.workflow.root)
         if failing_nodes:
             logger.error(f"Workflow failed with {failing_nodes} failing nodes.")
@@ -92,7 +97,7 @@ class Engine:
         node_path.mkdir(parents=True)
 
         for artifact in node.artifacts:
-            artifact.path = node_path / f"{artifact.name}.{artifact.type.value}"
+            artifact.path = node_path / f"{artifact.name}"
 
         for child in node.children:
             if self.db:

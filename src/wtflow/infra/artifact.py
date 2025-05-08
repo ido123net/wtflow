@@ -3,21 +3,13 @@ from __future__ import annotations
 import pathlib
 import sys
 from dataclasses import dataclass, field
-from enum import Enum
 
 DEFAULT_STREAMS = ("stdout", "stderr")
-
-
-class ArtifactType(str, Enum):
-    TXT = "txt"
-    JSON = "json"
-    CSV = "csv"
 
 
 @dataclass
 class Artifact:
     name: str
-    type: ArtifactType = ArtifactType.TXT
     file_path: pathlib.Path | None = None
 
     _opened: bool = field(default=False, init=False, repr=False)
