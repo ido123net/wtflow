@@ -44,21 +44,17 @@ class Executor(ABC):
         self._stdout_stream: IO[bytes] | None = None
         self._stderr_stream: IO[bytes] | None = None
 
-    @abstractmethod
-    def _execute(self) -> None:
-        """Execute logic, should be overridden by subclasses."""
-
-    def _wait(self) -> int | None:
-        """Wait for process completion."""
-
     @property
     def node(self) -> Node | None:
         return self._executable.node
 
-    def execute(self) -> None:
-        self._execute()
+    @abstractmethod
+    def execute(self, executable: Executable) -> None: ...
 
-    def wait(self) -> Result:
+    @abstractmethod
+    def wait(self, executable: Executable) -> int | None: ...
+
+    def _wait(self, executable: Executable) -> Result:
         stdout: FileIO | StreamArtifact
         stderr: FileIO | StreamArtifact
         if self.node:
@@ -75,7 +71,7 @@ class Executor(ABC):
 
         assert self._stdout_stream is not None and self._stderr_stream is not None
         with ThreadPoolExecutor(max_workers=3) as pool:
-            retcode_f = pool.submit(self._wait)
+            retcode_f = pool.submit(self.wait, executable)
             stdout_f = pool.submit(_read_stream, self._stdout_stream, _stdout_callback)
             stderr_f = pool.submit(_read_stream, self._stderr_stream, _stderr_callback)
 
@@ -85,13 +81,7 @@ class Executor(ABC):
 class MultiprocessingExecutor(Executor):
     """Runs a Python function asynchronously in a separate process using os.pipe."""
 
-    @property
-    def executable(self) -> PyFunc:
-        if TYPE_CHECKING:
-            assert isinstance(self._executable, PyFunc)
-        return self._executable
-
-    def _execute(self) -> None:
+    def execute(self, executable: PyFunc) -> None:
         stdout_rx, stdout_tx = os.pipe()
         stderr_rx, stderr_tx = os.pipe()
 
@@ -99,7 +89,7 @@ class MultiprocessingExecutor(Executor):
             sys.stdout = os.fdopen(stdout_tx, "w", buffering=1)
             sys.stderr = os.fdopen(stderr_tx, "w", buffering=1)
             try:
-                self.executable.func(*self.executable.args, **self.executable.kwargs)
+                executable.func(*executable.args, **executable.kwargs)
             except Exception:
                 traceback.print_exc()
                 raise
@@ -114,8 +104,8 @@ class MultiprocessingExecutor(Executor):
         os.close(stdout_tx)
         os.close(stderr_tx)
 
-    def _wait(self) -> int | None:
-        self._process.join(self.executable.timeout)
+    def wait(self, executable: PyFunc) -> int | None:
+        self._process.join(executable.timeout)
         if self._process.is_alive():
             self._process.terminate()
             self._process.join()
@@ -125,15 +115,9 @@ class MultiprocessingExecutor(Executor):
 class SubprocessExecutor(Executor):
     """Runs an external command asynchronously using subprocess."""
 
-    @property
-    def executable(self) -> Command:
-        if TYPE_CHECKING:
-            assert isinstance(self._executable, Command)
-        return self._executable
-
-    def _execute(self) -> None:
+    def execute(self, executable: Command) -> None:
         self._process = subprocess.Popen(
-            self.executable.cmd,
+            executable.cmd,
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -142,9 +126,9 @@ class SubprocessExecutor(Executor):
         self._stdout_stream = self._process.stdout
         self._stderr_stream = self._process.stderr
 
-    def _wait(self) -> int | None:
+    def wait(self, executable: Command) -> int | None:
         try:
-            return self._process.wait(self.executable.timeout)
+            return self._process.wait(executable.timeout)
         except (subprocess.TimeoutExpired, KeyboardInterrupt):
             os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
             return self._process.wait()
