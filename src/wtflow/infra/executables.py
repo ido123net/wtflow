@@ -11,7 +11,10 @@ if TYPE_CHECKING:
     from wtflow.infra.nodes import Node
 
 
+@dataclass
 class Executable(ABC):
+    timeout: float | None = field(default=None, kw_only=True)
+
     @abstractmethod
     def get_executor(self) -> Executor:
         """Return the executor for the executable."""
@@ -31,14 +34,13 @@ class Executable(ABC):
             return None
 
     def execute(self) -> Result:
-        self.executor.execute()
-        return self.executor.wait()
+        self.executor.execute(self)
+        return self.executor._wait(self)
 
 
 @dataclass
 class PyFunc(Executable):
     func: Callable[..., Any]
-    timeout: float | None = field(default=None, kw_only=True)
     args: tuple[Any, ...] = field(default_factory=tuple, kw_only=True)
     kwargs: dict[str, Any] = field(default_factory=dict, kw_only=True)
 
@@ -54,7 +56,6 @@ class PyFunc(Executable):
 @dataclass
 class Command(Executable):
     cmd: str
-    timeout: float | None = field(default=None, kw_only=True)
 
     def get_executor(self) -> Executor:
         return SubprocessExecutor(self)

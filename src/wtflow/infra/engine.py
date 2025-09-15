@@ -34,12 +34,13 @@ class Engine:
             yield
 
     def execute_node(self, node: Node, parallel: bool = False) -> int:
-        if not parallel:
-            logger.debug(f"Executing node {node.name!r}")
+        logger.debug(f"Executing node {node.name!r}")
         failing_nodes = 0
+        result = None
         with self._execute(node):
-            node.execute()
-        if node.retcode and node.retcode != 0:
+            if node.executable:
+                result = node.executable.execute()
+        if result and result.retcode != 0:
             logger.debug(f"Node {node.name!r} failed with return code {node.retcode}")
             failing_nodes += 1
         if not self.config.run.ignore_failure and failing_nodes > self.config.run.max_fail:

@@ -58,7 +58,7 @@ def test_fail_run():
     )
     engine = Engine(wf)
     assert engine.run() == 1
-    assert b"not found" in engine.workflow.root.stderr
+    assert b"not found" in engine.workflow.root.stderr_artifact.data
 
 
 def test_stop_on_failure():
@@ -99,7 +99,7 @@ def test_continue_on_failure():
     )
     engine = Engine(wf, config=config)
     assert engine.run() == 1
-    assert engine.workflow.root.children[1].stdout == b"run anyway\n"
+    assert engine.workflow.root.children[1].stdout_artifact.data == b"run anyway\n"
 
 
 def test_max_fail_config():
@@ -117,7 +117,7 @@ def test_max_fail_config():
     )
     engine = Engine(wf, config=config)
     assert engine.run() == 1
-    assert engine.workflow.root.children[2].stdout is None
+    assert engine.workflow.root.children[2].stdout_artifact.data == b""
 
 
 def test_artifact_config(storage_config, capsys):
@@ -189,7 +189,7 @@ def test_passing_artifact():
     )
     engine = Engine(wf)
     assert engine.run() == 0
-    assert engine.workflow.root.children[1].stdout == b"data from child1: Hello\n"
+    assert engine.workflow.root.children[1].stdout_artifact.data == b"data from child1: Hello\n"
 
 
 def func(): ...

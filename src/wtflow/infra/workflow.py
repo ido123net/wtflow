@@ -30,10 +30,10 @@ class Workflow:
         return nodes
 
     def _init_node(self, node: Node, counter: Iterator[int]) -> None:
-        node.lft = next(counter)
+        node._lft = next(counter)
         for child in node.children:
             self._init_node(child, counter)
-        node.rgt = next(counter)
+        node._rgt = next(counter)
 
     def __post_init__(self) -> None:
         counter = itertools.count(1)

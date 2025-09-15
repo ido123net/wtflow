@@ -30,8 +30,8 @@ class DBClient:
     def add_node(self, session: Session, node: wtflow.Node, workflow_id: int) -> None:
         n = db.Node(
             name=node.name,
-            lft=node.lft,
-            rgt=node.rgt,
+            lft=node._lft,
+            rgt=node._rgt,
             workflow_id=workflow_id,
         )
         session.add(n)

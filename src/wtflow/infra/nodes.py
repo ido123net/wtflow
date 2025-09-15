@@ -18,14 +18,12 @@ class Node:
     name: str
     executable: Executable | None = None
     retcode: int | None = None
-    stdout: bytes | None = None
-    stderr: bytes | None = None
     parallel: bool = False
     children: list[Node] = field(default_factory=list)
     artifacts: list[Artifact] = field(default_factory=list, repr=False)
 
-    lft: int | None = field(default=None, repr=False)
-    rgt: int | None = field(default=None, repr=False)
+    _lft: int | None = field(default=None, repr=False)
+    _rgt: int | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if "stdout" in self._artifact_dict or "stderr" in self._artifact_dict:
@@ -58,10 +56,6 @@ class Node:
 
     def set_id(self, id: int) -> None:
         self._id = id
-
-    def execute(self) -> None:
-        if self.executable:
-            self.retcode, self.stdout, self.stderr = self.executable.execute()
 
     def set_workflow(self, workflow: Workflow) -> None:
         self._workflow = workflow
