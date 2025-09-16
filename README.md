@@ -103,7 +103,6 @@ Configuration options are organized into these categories:
 
 **Run:**
 - `WTFLOW_IGNORE_FAILURE`: Continue workflow execution despite node failures (accepts: 0, 1, true, false)
-- `WTFLOW_MAX_FAIL`: Maximum number of failures before stopping workflow execution (default: 0)
 
 ### INI File Configuration
 
@@ -118,7 +117,6 @@ artifacts_dir = /path/to/artifacts
 
 [run]
 ignore_failure = false
-max_fail = 2
 ```
 
 Load the configuration in your code:

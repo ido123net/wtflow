@@ -29,7 +29,6 @@ class StorageConfig:
 @dataclass
 class RunConfig:
     ignore_failure: bool = False
-    max_fail: int = 0
 
     @classmethod
     def from_env(cls) -> RunConfig:
@@ -39,9 +38,7 @@ class RunConfig:
         else:
             ignore_failure = ignore_failure_env is not None and ignore_failure_env.lower() in {"1", "true"}
 
-        max_fail = int(os.environ.get("WTFLOW_MAX_FAIL", 0))
-
-        return cls(ignore_failure=ignore_failure, max_fail=max_fail)
+        return cls(ignore_failure=ignore_failure)
 
 
 @dataclass
@@ -68,10 +65,9 @@ class Config:
         db_url = config.get("database", "url", fallback=None)
         artifacts_dir = config.get("storage", "artifacts_dir", fallback=None)
         ignore_failure = config.getboolean("run", "ignore_failure", fallback=False)
-        max_fail = config.getint("run", "max_fail", fallback=0)
 
         return cls(
             db=DatabaseConfig(url=db_url),
             storage=StorageConfig(artifacts_dir=pathlib.Path(artifacts_dir) if artifacts_dir else None),
-            run=RunConfig(ignore_failure=ignore_failure, max_fail=max_fail),
+            run=RunConfig(ignore_failure=ignore_failure),
         )

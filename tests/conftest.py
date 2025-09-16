@@ -18,7 +18,6 @@ def ini_config(tmp_path):
 
                 [run]
                 ignore_failure = true
-                max_fail = 5
                 """
             )
         )

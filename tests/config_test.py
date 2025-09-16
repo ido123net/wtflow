@@ -15,4 +15,3 @@ def test_from_ini(tmp_path, ini_config):
     assert config.db.url == f"sqlite:///{tmp_path}/test.db"
     assert str(config.storage.artifacts_dir) == f"{tmp_path}/artifacts"
     assert config.run.ignore_failure is True
-    assert config.run.max_fail == 5
