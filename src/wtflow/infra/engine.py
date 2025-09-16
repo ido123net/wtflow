@@ -33,7 +33,7 @@ class Engine:
         else:
             yield
 
-    def execute_node(self, node: Node, parallel: bool = False) -> int:
+    def execute_node(self, node: Node) -> int:
         logger.debug(f"Executing node {node.name!r}")
         failing_nodes = 0
         result = None
@@ -43,21 +43,21 @@ class Engine:
         if result and result.retcode != 0:
             logger.debug(f"Node {node.name!r} failed with return code {node.retcode}")
             failing_nodes += 1
-        if not self.config.run.ignore_failure and failing_nodes > self.config.run.max_fail:
+        if not self.config.run.ignore_failure and failing_nodes > 0:
             return failing_nodes
-        return failing_nodes + self.execute_children(node.parallel, node.children)
+        return failing_nodes + self.execute_children(node.children, node.parallel)
 
-    def execute_children(self, parallel: bool, children: list[Node]) -> int:
+    def execute_children(self, children: list[Node], parallel: bool) -> int:
         if parallel:
             logger.debug(f"Executing {', '.join(repr(child.name) for child in children)} children in parallel")
             with ThreadPoolExecutor() as pool:
-                fs = [pool.submit(self.execute_node, child, parallel=True) for child in children]
+                fs = [pool.submit(self.execute_node, child) for child in children]
                 return sum(f.result() for f in fs)
         else:
             failing_nodes = 0
             for child in children:
                 failing_nodes += self.execute_node(child)
-                if not self.config.run.ignore_failure and failing_nodes > self.config.run.max_fail:
+                if not self.config.run.ignore_failure and failing_nodes > 0:
                     break
             return failing_nodes
 

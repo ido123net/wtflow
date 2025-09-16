@@ -102,24 +102,6 @@ def test_continue_on_failure():
     assert engine.workflow.root.children[1].stdout_artifact.data == b"run anyway\n"
 
 
-def test_max_fail_config():
-    config = Config(run=RunConfig(max_fail=1))
-    wf = Workflow(
-        name="test max fail",
-        root=Node(
-            name="Root Node",
-            children=[
-                Node(name="Node 1", executable=Command(cmd="command-not-exist")),
-                Node(name="Node 2", executable=Command(cmd="command-not-exist")),
-                Node(name="Node 3", executable=Command(cmd="echo run anyway")),
-            ],
-        ),
-    )
-    engine = Engine(wf, config=config)
-    assert engine.run() == 1
-    assert engine.workflow.root.children[2].stdout_artifact.data == b""
-
-
 def test_artifact_config(storage_config, capsys):
     config = Config(storage=storage_config)
     node = Node(
