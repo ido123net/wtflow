@@ -13,9 +13,6 @@ def ini_config(tmp_path):
                 [database]
                 url = sqlite:///{tmp_path}/test.db
 
-                [storage]
-                artifacts_dir = {tmp_path}/artifacts
-
                 [run]
                 ignore_failure = true
                 """

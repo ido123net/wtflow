@@ -15,18 +15,6 @@ class DatabaseConfig:
 
 
 @dataclass
-class StorageConfig:
-    artifacts_dir: pathlib.Path | None = None
-
-    @classmethod
-    def from_env(cls) -> StorageConfig:
-        artifact_dir_env = os.environ.get("WTFLOW_ARTIFACTS_DIR")
-        artifacts_dir = pathlib.Path(artifact_dir_env) if artifact_dir_env else None
-
-        return cls(artifacts_dir=artifacts_dir)
-
-
-@dataclass
 class RunConfig:
     ignore_failure: bool = False
 
@@ -44,14 +32,12 @@ class RunConfig:
 @dataclass
 class Config:
     db: DatabaseConfig = field(default_factory=DatabaseConfig)
-    storage: StorageConfig = field(default_factory=StorageConfig)
     run: RunConfig = field(default_factory=RunConfig)
 
     @classmethod
     def from_env(cls) -> Config:
         return cls(
             db=DatabaseConfig.from_env(),
-            storage=StorageConfig.from_env(),
             run=RunConfig.from_env(),
         )
 
@@ -63,11 +49,9 @@ class Config:
         config.read(ini_path)
 
         db_url = config.get("database", "url", fallback=None)
-        artifacts_dir = config.get("storage", "artifacts_dir", fallback=None)
         ignore_failure = config.getboolean("run", "ignore_failure", fallback=False)
 
         return cls(
             db=DatabaseConfig(url=db_url),
-            storage=StorageConfig(artifacts_dir=pathlib.Path(artifacts_dir) if artifacts_dir else None),
             run=RunConfig(ignore_failure=ignore_failure),
         )

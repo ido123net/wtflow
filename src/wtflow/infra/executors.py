@@ -9,14 +9,10 @@ import sys
 import traceback
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
-from functools import partial
-from io import FileIO
 from typing import IO, TYPE_CHECKING, Callable, NamedTuple
 
 if TYPE_CHECKING:
-    from wtflow.infra.artifact import StreamArtifact
     from wtflow.infra.executables import Command, Executable, PyFunc
-    from wtflow.infra.nodes import Node
 
 
 logger = logging.getLogger(__name__)
@@ -28,7 +24,7 @@ class Result(NamedTuple):
     stderr: bytes
 
 
-def _read_stream(stream: IO[bytes], callback: Callable[[bytes], None]) -> bytes:
+def _read_stream(stream: IO[bytes], callback: Callable[[bytes], int]) -> bytes:
     res = b""
     for line in iter(stream.readline, b""):
         callback(line)
@@ -44,10 +40,6 @@ class Executor(ABC):
         self._stdout_stream: IO[bytes] | None = None
         self._stderr_stream: IO[bytes] | None = None
 
-    @property
-    def node(self) -> Node | None:
-        return self._executable.node
-
     @abstractmethod
     def execute(self, executable: Executable) -> None: ...
 
@@ -55,25 +47,11 @@ class Executor(ABC):
     def wait(self, executable: Executable) -> int | None: ...
 
     def _wait(self, executable: Executable) -> Result:
-        stdout: FileIO | StreamArtifact
-        stderr: FileIO | StreamArtifact
-        if self.node:
-            stdout, stderr = self.node.stream_artifacts
-        else:
-            assert isinstance(sys.stdout.buffer, FileIO) and isinstance(sys.stderr.buffer, FileIO)
-            stdout, stderr = sys.stdout.buffer, sys.stderr.buffer
-
-        def _callback(stream: FileIO | StreamArtifact, line: bytes) -> None:
-            stream.write(line)
-
-        _stdout_callback = partial(_callback, stdout)
-        _stderr_callback = partial(_callback, stderr)
-
         assert self._stdout_stream is not None and self._stderr_stream is not None
         with ThreadPoolExecutor(max_workers=3) as pool:
             retcode_f = pool.submit(self.wait, executable)
-            stdout_f = pool.submit(_read_stream, self._stdout_stream, _stdout_callback)
-            stderr_f = pool.submit(_read_stream, self._stderr_stream, _stderr_callback)
+            stdout_f = pool.submit(_read_stream, self._stdout_stream, lambda line: sys.stdout.buffer.write(line))
+            stderr_f = pool.submit(_read_stream, self._stderr_stream, lambda line: sys.stderr.buffer.write(line))
 
         return Result(retcode_f.result(), stdout_f.result(), stderr_f.result())
 
@@ -81,7 +59,9 @@ class Executor(ABC):
 class MultiprocessingExecutor(Executor):
     """Runs a Python function asynchronously in a separate process using os.pipe."""
 
-    def execute(self, executable: PyFunc) -> None:
+    def execute(self, executable: Executable) -> None:
+        if TYPE_CHECKING:
+            assert isinstance(executable, PyFunc)
         stdout_rx, stdout_tx = os.pipe()
         stderr_rx, stderr_tx = os.pipe()
 
@@ -104,7 +84,9 @@ class MultiprocessingExecutor(Executor):
         os.close(stdout_tx)
         os.close(stderr_tx)
 
-    def wait(self, executable: PyFunc) -> int | None:
+    def wait(self, executable: Executable) -> int | None:
+        if TYPE_CHECKING:
+            assert isinstance(executable, PyFunc)
         self._process.join(executable.timeout)
         if self._process.is_alive():
             self._process.terminate()
@@ -115,7 +97,9 @@ class MultiprocessingExecutor(Executor):
 class SubprocessExecutor(Executor):
     """Runs an external command asynchronously using subprocess."""
 
-    def execute(self, executable: Command) -> None:
+    def execute(self, executable: Executable) -> None:
+        if TYPE_CHECKING:
+            assert isinstance(executable, Command)
         self._process = subprocess.Popen(
             executable.cmd,
             shell=True,
@@ -126,7 +110,9 @@ class SubprocessExecutor(Executor):
         self._stdout_stream = self._process.stdout
         self._stderr_stream = self._process.stderr
 
-    def wait(self, executable: Command) -> int | None:
+    def wait(self, executable: Executable) -> int | None:
+        if TYPE_CHECKING:
+            assert isinstance(executable, Command)
         try:
             return self._process.wait(executable.timeout)
         except (subprocess.TimeoutExpired, KeyboardInterrupt):
