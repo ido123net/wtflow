@@ -16,13 +16,6 @@ class Workflow:
     def nodes(self) -> list[Node]:
         return self._get_nodes(self.root)
 
-    @property
-    def id(self) -> str:
-        return str(self._id) if hasattr(self, "_id") else self.name
-
-    def set_id(self, id: int) -> None:
-        self._id = id
-
     def _get_nodes(self, node: Node) -> list[Node]:
         nodes = [node]
         for child in node.children:
@@ -40,7 +33,3 @@ class Workflow:
         self._init_node(self.root, counter)
         for node in self.nodes:
             node.set_workflow(self)
-
-    def print(self) -> None:
-        print(f"Workflow: {self.name}")
-        self.root.print()

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
-import pathlib
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from dataclasses import asdict
 from typing import TYPE_CHECKING, Generator
+
+import yaml
 
 from wtflow.config import Config
 from wtflow.db.client import DBClient
@@ -40,8 +42,9 @@ class Engine:
         with self._execute(node):
             if node.executable:
                 result = node.executable.execute()
+                node.result = result
         if result and result.retcode != 0:
-            logger.debug(f"Node {node.name!r} failed with return code {node.retcode}")
+            logger.debug(f"Node {node.name!r} failed with return code {result.retcode}")
             failing_nodes += 1
         if not self.config.run.ignore_failure and failing_nodes > 0:
             return failing_nodes
@@ -63,14 +66,16 @@ class Engine:
 
     def run(self) -> int:
         if self.dry_run:
-            self.workflow.print()
+            flow_dict = asdict(
+                self.workflow, dict_factory=lambda x: {k: v for k, v in x if not k.startswith("_") and bool(v)}
+            )
+            print(yaml.dump(flow_dict, indent=2, sort_keys=False), end="")
             return 0
 
         if self.db:
             with self.db.Session() as session:
                 self.db.add_workflow(session, self.workflow)
                 session.commit()
-        self._set_artifact_paths(self.workflow.root)
 
         failing_nodes = self.execute_node(self.workflow.root)
         if failing_nodes:
@@ -79,29 +84,3 @@ class Engine:
         else:
             logger.info("Workflow completed successfully.")
             return 0
-
-    @property
-    def artifacts_dir(self) -> pathlib.Path | None:
-        if not self.config.storage.artifacts_dir:
-            return None
-
-        return self.config.storage.artifacts_dir / self.workflow.id
-
-    def _set_artifact_paths(self, node: Node, base_path: pathlib.Path | None = None) -> None:
-        if not self.artifacts_dir:
-            return
-
-        if base_path is None:
-            base_path = self.artifacts_dir
-
-        node_path = base_path / node.id
-        node_path.mkdir(parents=True)
-
-        for artifact in node.artifacts:
-            artifact.path = node_path / f"{artifact.name}"
-
-        for child in node.children:
-            if self.db:
-                self._set_artifact_paths(child, self.artifacts_dir)
-            else:
-                self._set_artifact_paths(child, node_path)

@@ -1,7 +1,6 @@
 import pytest
 
-from wtflow.config import Config, DatabaseConfig, RunConfig, StorageConfig
-from wtflow.infra.artifact import Artifact
+from wtflow.config import Config, DatabaseConfig, RunConfig
 from wtflow.infra.engine import Engine
 from wtflow.infra.executables import Command, PyFunc
 from wtflow.infra.nodes import Node
@@ -12,12 +11,6 @@ from wtflow.infra.workflow import Workflow
 def data_dir(tmp_path_factory):
     data_dir = tmp_path_factory.mktemp("data")
     return data_dir
-
-
-@pytest.fixture()
-def storage_config(data_dir):
-    artifacts_dir = data_dir / "artifacts"
-    return StorageConfig(artifacts_dir=artifacts_dir)
 
 
 @pytest.fixture()
@@ -58,7 +51,7 @@ def test_fail_run():
     )
     engine = Engine(wf)
     assert engine.run() == 1
-    assert b"not found" in engine.workflow.root.stderr_artifact.data
+    assert b"not found" in engine.workflow.root.result.stderr
 
 
 def test_stop_on_failure():
@@ -82,7 +75,7 @@ def test_stop_on_failure():
     )
     engine = Engine(wf)
     assert engine.run() == 1
-    assert engine.workflow.root.children[2].retcode is None
+    assert engine.workflow.root.children[2].result is None
 
 
 def test_continue_on_failure():
@@ -99,42 +92,7 @@ def test_continue_on_failure():
     )
     engine = Engine(wf, config=config)
     assert engine.run() == 1
-    assert engine.workflow.root.children[1].stdout_artifact.data == b"run anyway\n"
-
-
-def test_artifact_config(storage_config, capsys):
-    config = Config(storage=storage_config)
-    node = Node(
-        name="Root Node",
-        executable=Command(cmd="echo 'Hello world'"),
-        children=[Node(name="Node 1", executable=Command(cmd="echo 'Hello'"))],
-    )
-    wf = Workflow(
-        name="test without config",
-        root=node,
-    )
-    engine = Engine(wf, config=config)
-    assert engine.run() == 0
-    assert capsys.readouterr().out == ""
-    with open(storage_config.artifacts_dir / wf.id / node.id / "stdout", "rb") as f:
-        assert f.read() == b"Hello world\n"
-
-
-def test_artifact_and_db_config(storage_config, db_config):
-    config = Config(storage=storage_config, db=db_config)
-    node = Node(
-        name="Root Node",
-        executable=Command(cmd="echo 'Hello world'"),
-        children=[Node(name="Node 1", executable=Command(cmd="echo 'Hello'"))],
-    )
-    wf = Workflow(
-        name="test with db",
-        root=node,
-    )
-    engine = Engine(wf, config=config)
-    assert engine.run() == 0
-    with open(storage_config.artifacts_dir / wf.id / node.id / "stdout", "rb") as f:
-        assert f.read() == b"Hello world\n"
+    assert engine.workflow.root.children[1].result.stdout == b"run anyway\n"
 
 
 def test_with_db_config(db_config):
@@ -143,7 +101,6 @@ def test_with_db_config(db_config):
         name="test no db",
         root=Node(
             name="Root Node",
-            executable=Command(cmd="echo 'Hello world'"),
             children=[
                 Node(name="Node 1", executable=Command(cmd="echo 'Hello'")),
             ],
@@ -153,28 +110,7 @@ def test_with_db_config(db_config):
     assert engine.run() == 0
 
 
-def _passing_artifact_func(artifact: Artifact):
-    print(f"data from child1: {artifact.data.decode().strip()}")
-
-
-def test_passing_artifact():
-    n1 = Node(name="Node 1", executable=Command(cmd="echo 'Hello'"))
-    wf = Workflow(
-        name="test passing artifact",
-        root=Node(
-            name="Root Node",
-            children=[
-                n1,
-                Node(name="Node 2", executable=PyFunc(func=_passing_artifact_func, args=(n1.stdout_artifact,))),
-            ],
-        ),
-    )
-    engine = Engine(wf)
-    assert engine.run() == 0
-    assert engine.workflow.root.children[1].stdout_artifact.data == b"data from child1: Hello\n"
-
-
-def func(): ...
+def func(*args, **kwargs): ...
 
 
 def test_dry_run(capsys):
@@ -184,7 +120,7 @@ def test_dry_run(capsys):
             name="Root Node",
             children=[
                 Node(name="Node 1", executable=Command(cmd="echo 'Hello'")),
-                Node(name="Node 2", executable=PyFunc(func=func)),
+                Node(name="Node 2", executable=PyFunc(func=func, args=(1, 2), kwargs={"a": 3})),
             ],
         ),
     )
@@ -192,11 +128,21 @@ def test_dry_run(capsys):
     assert engine.run() == 0
     out, _ = capsys.readouterr()
     expected_out = """\
-Workflow: test dry run
-- Root Node
-  - Node 1
-    Executable: Command(cmd="echo 'Hello'")
-  - Node 2
-    Executable: PyFunc(<tests.engine_test.func>)
+name: test dry run
+root:
+  name: Root Node
+  children:
+  - name: Node 1
+    executable:
+      cmd: echo 'Hello'
+  - name: Node 2
+    executable:
+      func: !!python/name:tests.engine_test.func ''
+      args: !!python/tuple
+      - 1
+      - 2
+      kwargs:
+        a: 3
 """
+    print(out)
     assert out == expected_out
