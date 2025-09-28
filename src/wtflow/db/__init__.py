@@ -1,4 +1,4 @@
-from .models import Base, Execution, Node, Workflow
+from .orm.models import Base, Execution, Node, Workflow
 
 __all__ = [
     "Base",

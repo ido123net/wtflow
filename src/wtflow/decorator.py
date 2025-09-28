@@ -2,18 +2,19 @@ from __future__ import annotations
 
 from typing import Callable
 
-from wtflow.infra.nodes import Node
+import wtflow
 
-ROOT_NODES: dict[str, Node] = {}
+_ALL_WORKFLOWS = set()
 
 
-def workflow(name: str | None = None) -> Callable[[Callable[[], Node]], None]:
-    def decorator(func: Callable[[], Node]) -> None:
-        workflow_name = name or func.__name__.replace("_", "-")
+def workflow(name: str | None = None) -> Callable[[Callable[[], wtflow.Node]], wtflow.Workflow]:
+    def decorator(func: Callable[[], wtflow.Node]) -> wtflow.Workflow:
+        wf_name = name or func.__name__.replace("_", "-")
 
-        if workflow_name in ROOT_NODES:
-            raise RuntimeError(f'Workflow with name "{workflow_name}" already exists.')
-
-        ROOT_NODES[workflow_name] = func()
+        wf = wtflow.Workflow(wf_name, func())
+        if wf_name in _ALL_WORKFLOWS:
+            raise RuntimeError(f"Workflow with name '{wf_name}' already exists.")
+        _ALL_WORKFLOWS.add(wf_name)
+        return wf
 
     return decorator

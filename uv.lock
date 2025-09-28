@@ -480,6 +480,7 @@ source = { editable = "." }
 dependencies = [
     { name = "pyyaml" },
     { name = "sqlalchemy" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 
 [package.dev-dependencies]
@@ -495,6 +496,7 @@ dev = [
 requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "sqlalchemy", specifier = ">=2.0.39" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'", specifier = ">=4.13.1" },
 ]
 
 [package.metadata.requires-dev]
