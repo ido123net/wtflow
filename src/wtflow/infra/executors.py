@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import logging
 import multiprocessing
 import os
@@ -9,6 +10,7 @@ import sys
 import traceback
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
+from multiprocessing.connection import Connection
 from typing import IO, TYPE_CHECKING, Callable, NamedTuple
 
 if TYPE_CHECKING:
@@ -56,33 +58,65 @@ class Executor(ABC):
         return Result(retcode_f.result(), stdout_f.result(), stderr_f.result())
 
 
+class ConnReader(io.RawIOBase, IO[bytes]):
+    def __init__(self, conn: Connection[bytes, bytes]):
+        self._conn = conn
+        self._buf = bytearray()
+        super().__init__()
+
+    def read(self, size: int = -1) -> bytes:
+        while size < 0 or len(self._buf) < size:
+            try:
+                chunk = self._conn.recv_bytes()
+            except EOFError:
+                break
+            self._buf.extend(chunk)
+        res = self._buf[:size]
+        self._buf = self._buf[size:]
+        return bytes(res)
+
+
+class ConnWriter(io.TextIOBase, IO[str]):
+    def __init__(self, conn: Connection[bytes, bytes]):
+        self._conn = conn
+        super().__init__()
+
+    def write(self, s: str) -> int:
+        data = s.encode("utf-8")
+        self._conn.send_bytes(data)
+        return len(data)
+
+
+def _wrapped_target(stdout_tx: ConnWriter, stderr_tx: ConnWriter, executable: PyFunc) -> None:
+    sys.stdout = stdout_tx
+    sys.stderr = stderr_tx
+    try:
+        executable.func(*executable.args, **executable.kwargs)
+    except Exception:
+        traceback.print_exc()
+        raise
+    finally:
+        sys.stdout.close()
+        sys.stderr.close()
+
+
 class MultiprocessingExecutor(Executor):
     """Runs a Python function asynchronously in a separate process using os.pipe."""
 
     def execute(self, executable: Executable) -> None:
         if TYPE_CHECKING:
             assert isinstance(executable, PyFunc)
-        stdout_rx, stdout_tx = os.pipe()
-        stderr_rx, stderr_tx = os.pipe()
+        stdout_rx, stdout_tx = multiprocessing.Pipe(duplex=False)
+        stderr_rx, stderr_tx = multiprocessing.Pipe(duplex=False)
 
-        def _target() -> None:
-            sys.stdout = os.fdopen(stdout_tx, "w", buffering=1)
-            sys.stderr = os.fdopen(stderr_tx, "w", buffering=1)
-            try:
-                executable.func(*executable.args, **executable.kwargs)
-            except Exception:
-                traceback.print_exc()
-                raise
-            finally:
-                sys.stdout.close()
-                sys.stderr.close()
-
-        self._process = multiprocessing.Process(target=_target)
+        self._process = multiprocessing.get_context("spawn").Process(
+            target=_wrapped_target,
+            args=(ConnWriter(stdout_tx), ConnWriter(stderr_tx), executable),
+            daemon=True,
+        )
         self._process.start()
-        self._stdout_stream = os.fdopen(stdout_rx, "rb")
-        self._stderr_stream = os.fdopen(stderr_rx, "rb")
-        os.close(stdout_tx)
-        os.close(stderr_tx)
+        self._stdout_stream = ConnReader(stdout_rx)
+        self._stderr_stream = ConnReader(stderr_rx)
 
     def wait(self, executable: Executable) -> int | None:
         if TYPE_CHECKING:
