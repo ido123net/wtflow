@@ -29,3 +29,7 @@ class Node:
 
     def set_workflow(self, workflow: Workflow) -> None:
         self._workflow = workflow
+
+    @property
+    def fail(self) -> bool:
+        return self.result is not None and self.result.retcode != 0

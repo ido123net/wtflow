@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 
 import yaml
 
 from wtflow.config import Config
-from wtflow.db.client import DBClient
+from wtflow.db.service import NoDBService
 
 if TYPE_CHECKING:
     from wtflow.infra.nodes import Node
@@ -21,34 +20,22 @@ logger = logging.getLogger(__name__)
 class Engine:
     def __init__(self, workflow: Workflow, config: Config | None = None, dry_run: bool = False) -> None:
         self.workflow = workflow
-        self.config = config or Config.from_env()
-        self.db = DBClient(self.config.db.url) if self.config.db.url else None
+        self.config = config or Config.from_ini()
+        self.db_service = self.config.database.create_db_service() if self.config.database else NoDBService()
         self.dry_run = dry_run
 
-    @contextmanager
-    def _execute(self, node: Node) -> Generator[None, None, None]:
-        if self.db:
-            with self.db.Session() as session:
-                self.db.start_execution(session, node)
-                yield
-                self.db.end_execution(session, node)
-        else:
-            yield
-
     def execute_node(self, node: Node) -> int:
+        if not node.executable:
+            return self.execute_children(node.children, node.parallel)
+
         logger.debug(f"Executing node {node.name!r}")
-        failing_nodes = 0
-        result = None
-        with self._execute(node):
-            if node.executable:
-                result = node.executable.execute()
-                node.result = result
-        if result and result.retcode != 0:
-            logger.debug(f"Node {node.name!r} failed with return code {result.retcode}")
-            failing_nodes += 1
-        if not self.config.run.ignore_failure and failing_nodes > 0:
-            return failing_nodes
-        return failing_nodes + self.execute_children(node.children, node.parallel)
+        with self.db_service.execute(node):
+            node.result = node.executable.execute()
+
+        if node.fail:
+            return 1
+
+        return int(node.fail) + self.execute_children(node.children, node.parallel)
 
     def execute_children(self, children: list[Node], parallel: bool) -> int:
         if parallel:
@@ -72,10 +59,7 @@ class Engine:
             print(yaml.dump(flow_dict, indent=2, sort_keys=False), end="")
             return 0
 
-        if self.db:
-            with self.db.Session() as session:
-                self.db.add_workflow(session, self.workflow)
-                session.commit()
+        self.db_service.add_workflow(self.workflow)
 
         failing_nodes = self.execute_node(self.workflow.root)
         if failing_nodes:

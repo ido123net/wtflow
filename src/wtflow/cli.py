@@ -6,7 +6,6 @@ from typing import Sequence
 from wtflow.config import Config
 from wtflow.discover import discover_root_nodes
 from wtflow.infra.engine import Engine
-from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Workflow
 
 
@@ -50,52 +49,53 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Error: The specified workflows path '{args.workflows_path}' does not exist.", file=sys.stderr)
         return 1
 
-    root_nodes_dict = discover_root_nodes(args.workflows_path)
+    workflow_dict = discover_root_nodes(args.workflows_path)
 
     if args.command == "list":
-        return _cmd_list(root_nodes_dict)
+        return _cmd_list(workflow_dict)
     elif args.command == "run":
-        return _cmd_run(root_nodes_dict, args.workflow, config, args.dry_run)
+        return _cmd_run(workflow_dict, args.workflow, config, args.dry_run)
     else:
         raise NotImplementedError
 
 
-def _cmd_list(root_nodes_dict: dict[str, Node]) -> int:
-    if not root_nodes_dict:
+def _cmd_list(workflow_dict: dict[str, Workflow]) -> int:
+    if not workflow_dict:
         print("No workflows found.")
         return 0
 
-    print(f"Found {len(root_nodes_dict)} workflow(s):")
-    for name in sorted(root_nodes_dict):
+    print(f"Found {len(workflow_dict)} workflow(s):")
+    for name in sorted(workflow_dict):
         print(f"- {name}")
 
     return 0
 
 
 def _cmd_run(
-    root_nodes_dict: dict[str, Node],
+    workflow_dict: dict[str, Workflow],
     workflow_name: str | None = None,
     config: Config | None = None,
     dry_run: bool = False,
 ) -> int:
-    if not root_nodes_dict:
+    if not workflow_dict:
         print("No workflows found.", file=sys.stderr)
         return 1
 
-    if workflow_name and workflow_name not in root_nodes_dict:
+    if workflow_name and workflow_name not in workflow_dict:
         print(f"Error: Workflow '{workflow_name}' not found.", file=sys.stderr)
         return 1
 
+    res = 0
     if workflow_name is None:
-        root_nodes = list(root_nodes_dict.values())
-        root = Node(name="All Workflows", children=root_nodes)
-        wf = Workflow(name="default", root=root)
+        wfs = list(workflow_dict.values())
     else:
-        root = root_nodes_dict[workflow_name]
-        wf = Workflow(name=workflow_name, root=root)
+        wfs = [workflow_dict[workflow_name]]
 
-    engine = Engine(workflow=wf, config=config, dry_run=dry_run)
-    return engine.run()
+    for wf in wfs:
+        engine = Engine(workflow=wf, config=config, dry_run=dry_run)
+        res += engine.run()
+
+    return min(res, 1)
 
 
 if __name__ == "__main__":

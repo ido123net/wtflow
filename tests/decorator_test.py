@@ -1,13 +1,15 @@
 import pytest
 
-from wtflow.decorator import workflow
+import wtflow
 
 
 def test_override_workflow():
     with pytest.raises(RuntimeError):
 
-        @workflow(name="test_workflow")
-        def _(): ...
+        @wtflow.workflow(name="test_workflow")
+        def _():
+            return wtflow.Node("")
 
-        @workflow(name="test_workflow")
-        def _(): ...
+        @wtflow.workflow(name="test_workflow")
+        def _():
+            return wtflow.Node("")
