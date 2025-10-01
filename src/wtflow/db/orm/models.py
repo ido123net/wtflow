@@ -31,6 +31,7 @@ class Node(Base):
     name: Mapped[str] = mapped_column()
     lft: Mapped[int] = mapped_column()
     rgt: Mapped[int] = mapped_column()
+
     workflow_id: Mapped[int] = mapped_column(ForeignKey("workflows.id"))
 
     workflow: Mapped[Workflow] = relationship("Workflow", back_populates="nodes")
@@ -49,6 +50,23 @@ class Execution(Base):
     start_at: Mapped[datetime | None] = mapped_column()
     end_at: Mapped[datetime | None] = mapped_column()
     retcode: Mapped[int | None] = mapped_column()
+
     node_id: Mapped[int] = mapped_column(ForeignKey("nodes.id"), unique=True)
 
     node: Mapped[Node] = relationship("Node", back_populates="executions")
+    artifacts: Mapped[list[Artifact]] = relationship(
+        "Artifact",
+        back_populates="execution",
+        cascade="all, delete-orphan",
+    )
+
+
+class Artifact(Base):
+    __tablename__ = "artifacts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    uri: Mapped[str] = mapped_column()
+
+    execution_id: Mapped[int] = mapped_column(ForeignKey("executions.id"))
+
+    execution: Mapped[Execution] = relationship("Execution", back_populates="artifacts")

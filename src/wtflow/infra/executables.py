@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pathlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import cached_property
@@ -20,9 +21,9 @@ class Executable(ABC):
     def executor(self) -> Executor:
         return self.get_executor()
 
-    def execute(self) -> Result:
+    def execute(self, stdout: pathlib.Path | None = None, stderr: pathlib.Path | None = None) -> Result:
         self.executor.execute(self)
-        return self.executor._wait(self)
+        return self.executor.wait(self, stdout, stderr)
 
 
 @dataclass

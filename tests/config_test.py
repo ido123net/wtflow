@@ -1,9 +1,9 @@
-from configparser import ConfigParser
+from configparser import ConfigParser, NoOptionError
 from textwrap import dedent
 
 import pytest
 
-from wtflow.config import Config, ConfigError, DatabaseConfig
+from wtflow.config import Config, DatabaseConfig
 
 
 def test_from_ini(tmp_path, ini_config):
@@ -30,7 +30,7 @@ def test_bad_ini():
             """
         )
     )
-    with pytest.raises(ConfigError, match="Unsupported database type: 'unknown'"):
+    with pytest.raises(ValueError, match="'unknown' is not a valid DBType"):
         Config(database=DatabaseConfig.from_config_parser(config_parser))
 
 
@@ -59,5 +59,5 @@ def test_no_type_option():
             """
         )
     )
-    with pytest.raises(ConfigError, match="database section must have 'type' option"):
+    with pytest.raises(NoOptionError, match="No option 'type' in section: 'database'"):
         Config(database=DatabaseConfig.from_config_parser(config_parser))

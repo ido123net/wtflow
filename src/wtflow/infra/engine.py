@@ -9,6 +9,7 @@ import yaml
 
 from wtflow.config import Config
 from wtflow.db.service import NoDBService
+from wtflow.storage.service import NoStorageService
 
 if TYPE_CHECKING:
     from wtflow.infra.nodes import Node
@@ -22,6 +23,9 @@ class Engine:
         self.workflow = workflow
         self.config = config or Config.from_ini()
         self.db_service = self.config.database.create_db_service() if self.config.database else NoDBService()
+        self.storage_service = (
+            self.config.storage.create_storage_service() if self.config.storage else NoStorageService()
+        )
         self.dry_run = dry_run
 
     def execute_node(self, node: Node) -> int:
@@ -29,8 +33,9 @@ class Engine:
             return self.execute_children(node.children, node.parallel)
 
         logger.debug(f"Executing node {node.name!r}")
-        with self.db_service.execute(node):
-            node.result = node.executable.execute()
+        stdout, stderr = self.storage_service.create_node_logs(self.workflow, node)
+        with self.db_service.execute(node, stdout, stderr):
+            node.result = node.executable.execute(stdout=stdout, stderr=stderr)
 
         if node.fail:
             return 1
