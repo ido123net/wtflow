@@ -4,6 +4,7 @@ import io
 import logging
 import multiprocessing
 import os
+import pathlib
 import signal
 import subprocess
 import sys
@@ -46,14 +47,25 @@ class Executor(ABC):
     def execute(self, executable: Executable) -> None: ...
 
     @abstractmethod
-    def wait(self, executable: Executable) -> int | None: ...
+    def _wait(self, executable: Executable) -> int | None: ...
 
-    def _wait(self, executable: Executable) -> Result:
+    def wait(
+        self,
+        executable: Executable,
+        stdout: pathlib.Path | None = None,
+        stderr: pathlib.Path | None = None,
+    ) -> Result:
         assert self._stdout_stream is not None and self._stderr_stream is not None
+        if stdout is not None:
+            stdout.parent.mkdir(parents=True, exist_ok=True)
+        if stderr is not None:
+            stderr.parent.mkdir(parents=True, exist_ok=True)
+        _stdout = open(stdout, "wb") if stdout else sys.stdout.buffer
+        _stderr = open(stderr, "wb") if stderr else sys.stderr.buffer
         with ThreadPoolExecutor(max_workers=3) as pool:
-            retcode_f = pool.submit(self.wait, executable)
-            stdout_f = pool.submit(_read_stream, self._stdout_stream, lambda line: sys.stdout.buffer.write(line))
-            stderr_f = pool.submit(_read_stream, self._stderr_stream, lambda line: sys.stderr.buffer.write(line))
+            retcode_f = pool.submit(self._wait, executable)
+            stdout_f = pool.submit(_read_stream, self._stdout_stream, lambda line: _stdout.write(line))
+            stderr_f = pool.submit(_read_stream, self._stderr_stream, lambda line: _stderr.write(line))
 
         return Result(retcode_f.result(), stdout_f.result(), stderr_f.result())
 
@@ -118,7 +130,7 @@ class MultiprocessingExecutor(Executor):
         self._stdout_stream = ConnReader(stdout_rx)
         self._stderr_stream = ConnReader(stderr_rx)
 
-    def wait(self, executable: Executable) -> int | None:
+    def _wait(self, executable: Executable) -> int | None:
         if TYPE_CHECKING:
             assert isinstance(executable, PyFunc)
         self._process.join(executable.timeout)
@@ -144,7 +156,7 @@ class SubprocessExecutor(Executor):
         self._stdout_stream = self._process.stdout
         self._stderr_stream = self._process.stderr
 
-    def wait(self, executable: Executable) -> int | None:
+    def _wait(self, executable: Executable) -> int | None:
         if TYPE_CHECKING:
             assert isinstance(executable, Command)
         try:

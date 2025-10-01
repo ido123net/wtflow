@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterator
 
 from wtflow.infra.nodes import Node
@@ -12,9 +12,16 @@ class Workflow:
     name: str
     root: Node
 
+    _id: int | None = field(default=None, repr=False, init=False)
+
     @property
     def nodes(self) -> list[Node]:
         return self._get_nodes(self.root)
+
+    @property
+    def id(self) -> str:
+        _id = self._id or self.name
+        return str(_id)
 
     def _get_nodes(self, node: Node) -> list[Node]:
         nodes = [node]
@@ -31,5 +38,3 @@ class Workflow:
     def __post_init__(self) -> None:
         counter = itertools.count(1)
         self._init_node(self.root, counter)
-        for node in self.nodes:
-            node.set_workflow(self)

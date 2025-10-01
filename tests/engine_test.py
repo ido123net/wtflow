@@ -1,6 +1,6 @@
 import pytest
 
-from wtflow.config import Config, RunConfig, SQLAlchemyConfig
+from wtflow.config import Config, LocalStorageConfig, RunConfig, SQLAlchemyConfig
 from wtflow.infra.engine import Engine
 from wtflow.infra.executables import Command, PyFunc
 from wtflow.infra.nodes import Node
@@ -17,6 +17,11 @@ def data_dir(tmp_path_factory):
 def db_config(data_dir):
     url = f"sqlite:///{data_dir}/test.db"
     return SQLAlchemyConfig(url=url)
+
+
+@pytest.fixture()
+def local_storage_config(data_dir):
+    return LocalStorageConfig(base_path=data_dir)
 
 
 def test_run():
@@ -73,7 +78,7 @@ def test_stop_on_failure():
             ],
         ),
     )
-    engine = Engine(wf)
+    engine = Engine(wf, config=Config())
     assert engine.run() == 1
     assert engine.workflow.root.children[2].result is None
 
@@ -95,8 +100,8 @@ def test_continue_on_failure():
     assert engine.workflow.root.children[1].result.stdout == b"run anyway\n"
 
 
-def test_with_db_config(db_config):
-    config = Config(database=db_config)
+def test_with_db_config(db_config, local_storage_config):
+    config = Config(database=db_config, storage=local_storage_config)
     wf = Workflow(
         name="test no db",
         root=Node(

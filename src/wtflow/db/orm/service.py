@@ -25,15 +25,22 @@ class OrmDBService(DBServiceInterface):
         with self.Session() as session:
             session.add(wf)
             session.flush()
+            workflow._id = wf.id
             for node in workflow.nodes:
                 self._add_node(session, node, wf.id)
             session.commit()
 
-    def start_execution(self, node: wtflow.Node) -> None:
+    def start_execution(
+        self,
+        node: wtflow.Node,
+        stdout_uri: str | None,
+        stderr_uri: str | None,
+    ) -> None:
         execution = models.Execution(
             start_at=datetime.now(timezone.utc),
             node_id=node.id,
         )
+        execution.artifacts = [models.Artifact(uri=uri) for uri in (stdout_uri, stderr_uri) if uri is not None]
         with self.Session() as session:
             session.add(execution)
             session.commit()
@@ -58,3 +65,4 @@ class OrmDBService(DBServiceInterface):
         )
         session.add(n)
         session.flush()
+        node._id = n.id
