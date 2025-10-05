@@ -100,7 +100,37 @@ def test_continue_on_failure():
     assert engine.workflow.root.children[1].result.stdout == b"run anyway\n"
 
 
-def test_with_db_config(db_config, local_storage_config):
+def test_with_db_config(db_config):
+    config = Config(database=db_config)
+    wf = Workflow(
+        name="test with db config",
+        root=Node(
+            name="Root Node",
+            children=[
+                Node(name="Node 1", executable=Command(cmd="echo 'Hello'")),
+            ],
+        ),
+    )
+    engine = Engine(wf, config=config)
+    assert engine.run() == 0
+
+
+def test_with_storage_config(local_storage_config):
+    config = Config(storage=local_storage_config)
+    wf = Workflow(
+        name="test no db",
+        root=Node(
+            name="Root Node",
+            children=[
+                Node(name="Node 1", executable=Command(cmd="echo 'Hello'")),
+            ],
+        ),
+    )
+    engine = Engine(wf, config=config)
+    assert engine.run() == 0
+
+
+def test_with_db_and_storage_config(db_config, local_storage_config):
     config = Config(database=db_config, storage=local_storage_config)
     wf = Workflow(
         name="test no db",

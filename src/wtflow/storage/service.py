@@ -1,22 +1,51 @@
 from __future__ import annotations
 
-import pathlib
+import sys
 from abc import ABC, abstractmethod
-from typing import NamedTuple
 
 import wtflow
 
 
-class NodeLogs(NamedTuple):
-    stdout: pathlib.Path | None = None
-    stderr: pathlib.Path | None = None
-
-
 class StorageServiceInterface(ABC):
     @abstractmethod
-    def create_node_logs(self, workflow: wtflow.Workflow, node: wtflow.Node) -> NodeLogs: ...
+    def get_artifact_uri(
+        self,
+        artifact: wtflow.Artifact,
+        workflow: wtflow.Workflow,
+        node: wtflow.Node,
+    ) -> str | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def append_to_artifact(
+        self,
+        artifact: wtflow.Artifact,
+        workflow: wtflow.Workflow,
+        node: wtflow.Node,
+        data: bytes,
+    ) -> None:
+        raise NotImplementedError
 
 
 class NoStorageService(StorageServiceInterface):
-    def create_node_logs(self, workflow: wtflow.Workflow, node: wtflow.Node) -> NodeLogs:
-        return NodeLogs()
+    def get_artifact_uri(
+        self,
+        artifact: wtflow.Artifact,
+        workflow: wtflow.Workflow,
+        node: wtflow.Node,
+    ) -> str | None:
+        return None
+
+    def append_to_artifact(
+        self,
+        artifact: wtflow.Artifact,
+        workflow: wtflow.Workflow,
+        node: wtflow.Node,
+        data: bytes,
+    ) -> None:
+        if artifact.name == "stdout":
+            sys.stdout.buffer.write(data)
+        elif artifact.name == "stderr":
+            sys.stderr.buffer.write(data)
+        else:
+            raise NotImplementedError(f"Artifact {artifact.name} is not supported in {self.__class__.__name__}")

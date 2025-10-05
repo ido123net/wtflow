@@ -13,12 +13,12 @@ def ini_config(tmp_path):
             dedent(
                 f"""\
                 [database]
-                type = orm
+                factory = wtflow.config.SQLAlchemyConfig
                 url = sqlite:///{tmp_path}/test.db
 
                 [storage]
-                type = local
-                path = {tmp_path}/.wtflow_logs
+                factory = wtflow.config.LocalStorageConfig
+                base_path = {tmp_path}/.wtflow_logs
 
                 [run]
                 ignore_failure = true

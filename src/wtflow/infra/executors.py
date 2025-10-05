@@ -4,7 +4,6 @@ import io
 import logging
 import multiprocessing
 import os
-import pathlib
 import signal
 import subprocess
 import sys
@@ -12,11 +11,9 @@ import traceback
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing.connection import Connection
-from typing import IO, TYPE_CHECKING, Callable, NamedTuple
+from typing import IO, Callable, NamedTuple
 
-if TYPE_CHECKING:
-    from wtflow.infra.executables import Command, Executable, PyFunc
-
+from wtflow.infra.executables import Command, Executable, PyFunc
 
 logger = logging.getLogger(__name__)
 
@@ -39,33 +36,28 @@ class Executor(ABC):
     """Base class for execution logic."""
 
     def __init__(self, executable: Executable) -> None:
-        self._executable = executable
-        self._stdout_stream: IO[bytes] | None = None
-        self._stderr_stream: IO[bytes] | None = None
+        self.executable = executable
+        self.stdout: IO[bytes] | None = None
+        self.stderr: IO[bytes] | None = None
 
     @abstractmethod
-    def execute(self, executable: Executable) -> None: ...
+    def _execute(self, executable: Executable) -> None: ...
 
     @abstractmethod
     def _wait(self, executable: Executable) -> int | None: ...
 
-    def wait(
-        self,
-        executable: Executable,
-        stdout: pathlib.Path | None = None,
-        stderr: pathlib.Path | None = None,
-    ) -> Result:
-        assert self._stdout_stream is not None and self._stderr_stream is not None
-        if stdout is not None:
-            stdout.parent.mkdir(parents=True, exist_ok=True)
-        if stderr is not None:
-            stderr.parent.mkdir(parents=True, exist_ok=True)
-        _stdout = open(stdout, "wb") if stdout else sys.stdout.buffer
-        _stderr = open(stderr, "wb") if stderr else sys.stderr.buffer
+    def execute(self) -> Result:
+        self._execute(self.executable)
+        return self.wait()
+
+    def wait(self) -> Result:
+        assert self.stdout is not None and self.stderr is not None
+        _stdout = sys.stdout.buffer
+        _stderr = sys.stderr.buffer
         with ThreadPoolExecutor(max_workers=3) as pool:
-            retcode_f = pool.submit(self._wait, executable)
-            stdout_f = pool.submit(_read_stream, self._stdout_stream, lambda line: _stdout.write(line))
-            stderr_f = pool.submit(_read_stream, self._stderr_stream, lambda line: _stderr.write(line))
+            retcode_f = pool.submit(self._wait, self.executable)
+            stdout_f = pool.submit(_read_stream, self.stdout, lambda line: _stdout.write(line))
+            stderr_f = pool.submit(_read_stream, self.stderr, lambda line: _stderr.write(line))
 
         return Result(retcode_f.result(), stdout_f.result(), stderr_f.result())
 
@@ -115,9 +107,9 @@ def _wrapped_target(stdout_tx: ConnWriter, stderr_tx: ConnWriter, executable: Py
 class MultiprocessingExecutor(Executor):
     """Runs a Python function asynchronously in a separate process using os.pipe."""
 
-    def execute(self, executable: Executable) -> None:
-        if TYPE_CHECKING:
-            assert isinstance(executable, PyFunc)
+    def _execute(self, executable: Executable) -> None:
+        if not isinstance(executable, PyFunc):
+            raise TypeError(f"expected PyFunc, not {type(executable).__name__}")
         stdout_rx, stdout_tx = multiprocessing.Pipe(duplex=False)
         stderr_rx, stderr_tx = multiprocessing.Pipe(duplex=False)
 
@@ -127,12 +119,12 @@ class MultiprocessingExecutor(Executor):
             daemon=True,
         )
         self._process.start()
-        self._stdout_stream = ConnReader(stdout_rx)
-        self._stderr_stream = ConnReader(stderr_rx)
+        self.stdout = ConnReader(stdout_rx)
+        self.stderr = ConnReader(stderr_rx)
 
     def _wait(self, executable: Executable) -> int | None:
-        if TYPE_CHECKING:
-            assert isinstance(executable, PyFunc)
+        if not isinstance(executable, PyFunc):
+            raise TypeError(f"expected PyFunc, not {type(executable).__name__}")
         self._process.join(executable.timeout)
         if self._process.is_alive():
             self._process.terminate()
@@ -143,9 +135,9 @@ class MultiprocessingExecutor(Executor):
 class SubprocessExecutor(Executor):
     """Runs an external command asynchronously using subprocess."""
 
-    def execute(self, executable: Executable) -> None:
-        if TYPE_CHECKING:
-            assert isinstance(executable, Command)
+    def _execute(self, executable: Executable) -> None:
+        if not isinstance(executable, Command):
+            raise TypeError(f"expected Command, not {type(executable).__name__}")
         self._process = subprocess.Popen(
             executable.cmd,
             shell=True,
@@ -153,14 +145,19 @@ class SubprocessExecutor(Executor):
             stderr=subprocess.PIPE,
             start_new_session=True,
         )
-        self._stdout_stream = self._process.stdout
-        self._stderr_stream = self._process.stderr
+        self.stdout = self._process.stdout
+        self.stderr = self._process.stderr
 
     def _wait(self, executable: Executable) -> int | None:
-        if TYPE_CHECKING:
-            assert isinstance(executable, Command)
+        if not isinstance(executable, Command):
+            raise TypeError(f"expected Command, not {type(executable).__name__}")
         try:
             return self._process.wait(executable.timeout)
         except (subprocess.TimeoutExpired, KeyboardInterrupt):
             os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
             return self._process.wait()
+
+
+def get_executor(executable: Executable) -> Executor:
+    executor = executable.get_executor()
+    return executor(executable)

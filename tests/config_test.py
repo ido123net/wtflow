@@ -19,18 +19,33 @@ def test_from_ini_no_file(tmp_path, ini_config, monkeypatch):
     assert config.run.ignore_failure is True
 
 
-def test_bad_ini():
+def test_bad_ini_not_clspath():
     config_parser = ConfigParser()
     config_parser.read_string(
         dedent(
             """\
             [database]
-            type = unknown
+            factory = unknown
             url = sqlite:///test.db
             """
         )
     )
-    with pytest.raises(ValueError, match="'unknown' is not a valid DBType"):
+    with pytest.raises(ValueError, match="not enough values to unpack"):
+        Config(database=DatabaseConfig.from_config_parser(config_parser))
+
+
+def test_bad_ini_clspath_not_exists():
+    config_parser = ConfigParser()
+    config_parser.read_string(
+        dedent(
+            """\
+            [database]
+            factory = unknown.UnknownClass
+            url = sqlite:///test.db
+            """
+        )
+    )
+    with pytest.raises(ModuleNotFoundError, match="No module named 'unknown'"):
         Config(database=DatabaseConfig.from_config_parser(config_parser))
 
 
@@ -45,7 +60,7 @@ def test_no_database_section():
         )
     )
     config = Config._from_config_parser(config_parser)
-    assert config.database is None
+    assert config.database == DatabaseConfig()
     assert config.run.ignore_failure is True
 
 
@@ -59,5 +74,5 @@ def test_no_type_option():
             """
         )
     )
-    with pytest.raises(NoOptionError, match="No option 'type' in section: 'database'"):
+    with pytest.raises(NoOptionError, match="No option 'factory' in section: 'database'"):
         Config(database=DatabaseConfig.from_config_parser(config_parser))
