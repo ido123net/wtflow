@@ -3,46 +3,41 @@ from __future__ import annotations
 import logging
 import pathlib
 import sys
-from abc import ABC, abstractmethod
 from configparser import ConfigParser, SectionProxy
 from dataclasses import dataclass, field
-from enum import Enum
 
-from wtflow.storage.service import StorageServiceInterface
+import wtflow
+from wtflow.db.service import DBServiceInterface, NoDBService
+from wtflow.storage.service import NoStorageService, StorageServiceInterface
+from wtflow.utils import import_module
 
 if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
     from typing import Self
 else:  # pragma: <3.11 cover
     from typing_extensions import Self
 
-import wtflow
-from wtflow.db.service import DBServiceInterface
-
 logger = logging.getLogger(__name__)
 
 
-class DBType(str, Enum):
-    ORM = "orm"
-
-
-class DatabaseConfig(ABC):
+@dataclass
+class DatabaseConfig:
     @classmethod
-    @abstractmethod
-    def from_db_section(cls, section: SectionProxy) -> Self: ...
+    def from_db_section(cls, section: SectionProxy) -> Self:
+        raise NotImplementedError
 
-    @abstractmethod
-    def create_db_service(self) -> DBServiceInterface: ...
+    def create_db_service(self, storage_service: StorageServiceInterface) -> DBServiceInterface:
+        return NoDBService(storage_service)
 
     @classmethod
-    def from_config_parser(cls, config: ConfigParser) -> DatabaseConfig | None:
-        type_ = config.get("database", "type")
-        db_type = DBType(type_)
-
-        if db_type is DBType.ORM:
-            database_section = config["database"]
-            return SQLAlchemyConfig.from_db_section(database_section)
-        else:
-            raise NotImplementedError
+    def from_config_parser(cls, config: ConfigParser) -> DatabaseConfig:
+        if not config.has_section("database"):
+            return cls()
+        factory_clspath = config.get("database", "factory")
+        module_path, class_name = factory_clspath.rsplit(".", 1)
+        module = import_module(module_path)
+        factory: DatabaseConfig = getattr(module, class_name)
+        database_section = config["database"]
+        return factory.from_db_section(database_section)
 
 
 @dataclass
@@ -55,36 +50,34 @@ class SQLAlchemyConfig(DatabaseConfig):
         assert url is not None
         return cls(url=url)
 
-    def create_db_service(self) -> DBServiceInterface:
+    def create_db_service(self, storage_service: StorageServiceInterface) -> DBServiceInterface:
         from wtflow.db.orm.service import OrmDBService
 
-        return OrmDBService(self.url)
+        return OrmDBService(storage_service, self.url)
 
 
-class StorageType(str, Enum):
-    LOCAL = "local"
-
-
-class StorageConfig(ABC):
+@dataclass
+class StorageConfig:
     @classmethod
-    @abstractmethod
-    def from_storage_section(cls, section: SectionProxy) -> Self: ...
+    def from_storage_section(cls, section: SectionProxy) -> Self:
+        raise NotImplementedError
 
-    @abstractmethod
-    def create_storage_service(self) -> StorageServiceInterface: ...
+    def create_storage_service(self) -> StorageServiceInterface:
+        return NoStorageService()
 
     @classmethod
-    def from_config_parser(cls, config: ConfigParser) -> StorageConfig | None:
-        type_ = config.get("storage", "type")
-        storage_type = StorageType(type_)
+    def from_config_parser(cls, config: ConfigParser) -> StorageConfig:
+        if not config.has_section("storage"):
+            return cls()
+        factory_clspath = config.get("storage", "factory")
+        module_path, class_name = factory_clspath.rsplit(".", 1)
+        module = import_module(module_path)
+        factory: StorageConfig = getattr(module, class_name)
+        storage_section = config["storage"]
+        return factory.from_storage_section(storage_section)
 
-        if storage_type is StorageType.LOCAL:
-            storage_section = config["storage"]
-            return LocalStorageConfig.from_storage_section(storage_section)
-        else:
-            raise NotImplementedError
 
-
+@dataclass
 class LocalStorageConfig(StorageConfig):
     def __init__(self, base_path: str = ".wtflow_logs") -> None:
         self.base_path = base_path
@@ -112,8 +105,8 @@ class RunConfig:
 
 @dataclass
 class Config:
-    database: DatabaseConfig | None = None
-    storage: StorageConfig | None = None
+    storage: StorageConfig = field(default_factory=StorageConfig)
+    database: DatabaseConfig = field(default_factory=DatabaseConfig)
     run: RunConfig = field(default_factory=RunConfig)
 
     @classmethod
@@ -127,7 +120,7 @@ class Config:
     @classmethod
     def _from_config_parser(cls, config: ConfigParser) -> Config:
         return cls(
-            database=DatabaseConfig.from_config_parser(config) if config.has_section("database") else None,
-            storage=StorageConfig.from_config_parser(config) if config.has_section("storage") else None,
+            database=DatabaseConfig.from_config_parser(config),
+            storage=StorageConfig.from_config_parser(config),
             run=RunConfig.from_config_parser(config),
         )

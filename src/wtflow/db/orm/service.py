@@ -7,12 +7,14 @@ from sqlalchemy.orm import Session, sessionmaker
 
 import wtflow
 from wtflow.db.service import DBServiceInterface
+from wtflow.storage.service import StorageServiceInterface
 
 from . import models
 
 
 class OrmDBService(DBServiceInterface):
-    def __init__(self, url: str):
+    def __init__(self, storage_service: StorageServiceInterface, url: str) -> None:
+        super().__init__(storage_service)
         self.engine = create_engine(url)
         self.Session = sessionmaker(bind=self.engine)
         self.create_all()
@@ -30,22 +32,21 @@ class OrmDBService(DBServiceInterface):
                 self._add_node(session, node, wf.id)
             session.commit()
 
-    def start_execution(
-        self,
-        node: wtflow.Node,
-        stdout_uri: str | None,
-        stderr_uri: str | None,
-    ) -> None:
+    def start_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
         execution = models.Execution(
             start_at=datetime.now(timezone.utc),
             node_id=node.id,
         )
-        execution.artifacts = [models.Artifact(uri=uri) for uri in (stdout_uri, stderr_uri) if uri is not None]
+        execution.artifacts = [
+            models.Artifact(uri=artifact.uri)
+            for artifact in node.all_artifacts
+            if self.storage_service.get_artifact_uri(artifact, workflow, node) is not None
+        ]
         with self.Session() as session:
             session.add(execution)
             session.commit()
 
-    def end_execution(self, node: wtflow.Node) -> None:
+    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
         with self.Session() as session:
             stmt = (
                 update(models.Execution)

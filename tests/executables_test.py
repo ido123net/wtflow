@@ -3,11 +3,13 @@ from __future__ import annotations
 import time
 
 from wtflow.infra.executables import Command, PyFunc
+from wtflow.infra.executors import get_executor
 
 
 def test_timeout():
     executable = Command(cmd="sleep 5", timeout=0.1)
-    result = executable.execute()
+    executor = get_executor(executable)
+    result = executor.execute()
     assert result.retcode == -15
     assert result.stdout == b""
     assert result.stderr == b""
@@ -19,7 +21,8 @@ def func(*args, **kwargs):
 
 def test_PyFunc_executable():
     executable = PyFunc(func, args=(1, 2), kwargs={"a": 1})
-    result = executable.execute()
+    executor = get_executor(executable)
+    result = executor.execute()
     assert result.retcode == 0
     assert result.stdout == b"(1, 2) {'a': 1}\n"
     assert result.stderr == b""
@@ -31,7 +34,8 @@ def _f_sleep():
 
 def test_PyFunc_timeout():
     executable = PyFunc(_f_sleep, timeout=0.1)
-    result = executable.execute()
+    executor = get_executor(executable)
+    result = executor.execute()
     assert result.retcode == -15
     assert result.stdout == b""
     assert result.stderr == b""
@@ -43,7 +47,8 @@ def _f_exception():
 
 def test_PyFunc_exception():
     executable = PyFunc(func=_f_exception)
-    result = executable.execute()
+    executor = get_executor(executable)
+    result = executor.execute()
     assert result.retcode == 1
     assert result.stdout == b""
     assert b"Traceback (most recent call last):\n" in result.stderr
@@ -52,7 +57,8 @@ def test_PyFunc_exception():
 
 def test_partial_stdout():
     executable = Command(cmd="echo 'Hello' && sleep 2 && echo 'World'", timeout=0.1)
-    result = executable.execute()
+    executor = get_executor(executable)
+    result = executor.execute()
     assert result.retcode == -15
     assert result.stdout == b"Hello\n"
     assert result.stderr == b""
@@ -66,7 +72,8 @@ def _f_partial_stdout():  # pragma: no cover (this will only run partially)
 
 def test_partial_stdout_pyfunc():
     executable = PyFunc(_f_partial_stdout, timeout=1)
-    result = executable.execute()
+    executor = get_executor(executable)
+    result = executor.execute()
     assert result.retcode == -15
     assert result.stdout == b"Hello\n"
     assert result.stderr == b""
