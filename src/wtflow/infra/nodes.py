@@ -19,8 +19,9 @@ class Node:
     executable: Executable | None = None
     parallel: bool = False
     children: list[Node] = field(default_factory=list)
-    result: Result | None = field(default=None)
     artifacts: list[Artifact] = field(default_factory=list)
+
+    result: Result | None = field(default=None, init=False)
 
     _stdout: Artifact = field(default_factory=lambda: Artifact(name="stdout"))
     _stderr: Artifact = field(default_factory=lambda: Artifact(name="stderr"))
