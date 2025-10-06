@@ -19,6 +19,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=Path,
     )
     parser.add_argument(
+        "--no-config",
+        action="store_true",
+        help="Ignore config file",
+    )
+    parser.add_argument(
         "--file",
         "-f",
         help="Path to workflows directory (default: 'wtfile.py')",
@@ -42,7 +47,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     config = None
-    if args.config:
+    if args.no_config:
+        config = Config()
+    elif args.config:
         config = Config.from_ini(args.config)
 
     if not args.workflows_path.exists():
