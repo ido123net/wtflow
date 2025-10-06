@@ -7,7 +7,11 @@ import wtflow
 _ALL_WORKFLOWS = set()
 
 
-def workflow(name: str | None = None) -> Callable[[Callable[[], wtflow.Node]], wtflow.Workflow]:
+def workflow(
+    func: Callable[[], wtflow.Node] | None = None,
+    *,
+    name: str | None = None,
+) -> Callable[[Callable[[], wtflow.Node]], wtflow.Workflow] | wtflow.Workflow:
     def decorator(func: Callable[[], wtflow.Node]) -> wtflow.Workflow:
         wf_name = name or func.__name__.replace("_", "-")
 
@@ -16,5 +20,8 @@ def workflow(name: str | None = None) -> Callable[[Callable[[], wtflow.Node]], w
             raise RuntimeError(f"Workflow with name '{wf_name}' already exists.")
         _ALL_WORKFLOWS.add(wf_name)
         return wf
+
+    if func is not None:
+        return decorator(func)
 
     return decorator
