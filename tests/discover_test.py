@@ -11,7 +11,7 @@ def wtflie(tmp_path):
 import wtflow
 
 
-@wtflow.workflow(name="hello-world")
+@wtflow.wf(name="hello-world")
 def workflow_1():
     """A simple workflow that prints Hello World"""
     return wtflow.Node(
@@ -30,11 +30,11 @@ def invalid_wtflie(tmp_path):
 import wtflow
 
 
-@wtflow.workflow(name="test_workflow")
+@wtflow.wf(name="test_wf")
 def _():
     return wtflow.Node("")
 
-@wtflow.workflow(name="test_workflow")
+@wtflow.wf(name="test_wf")
 def _():
     return wtflow.Node("")
 """)

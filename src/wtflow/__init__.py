@@ -1,4 +1,4 @@
-from .decorator import workflow
+from .decorator import wf
 from .infra.artifact import Artifact
 from .infra.engine import Engine
 from .infra.executables import Command, PyFunc
@@ -11,6 +11,6 @@ __all__ = [
     "Engine",
     "Node",
     "PyFunc",
-    "workflow",
+    "wf",
     "Workflow",
 ]
