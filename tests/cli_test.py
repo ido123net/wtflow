@@ -42,7 +42,8 @@ def test_list(wtfile, capsys):
     assert out == WTFLIE_OUT
 
 
-def test_run_all(wtfile, capsys):
+def test_run_all(wtfile, capsys, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     main(["--file", str(wtfile), "run"])
     out, _ = capsys.readouterr()
     expected_out = """\
@@ -52,7 +53,8 @@ Workflow 2
     assert out == expected_out
 
 
-def test_run_workflow(wtfile, capsys):
+def test_run_workflow(wtfile, capsys, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     main(["--file", str(wtfile), "run", "--workflow", "hello-world"])
     out, _ = capsys.readouterr()
     assert out == "Hello, World!\n"
