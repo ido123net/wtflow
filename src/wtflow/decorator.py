@@ -7,7 +7,7 @@ import wtflow
 _ALL_WORKFLOWS = set()
 
 
-def workflow(
+def wf(
     func: Callable[[], wtflow.Node] | None = None,
     *,
     name: str | None = None,

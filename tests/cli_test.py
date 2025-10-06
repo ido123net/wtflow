@@ -11,7 +11,7 @@ def wtfile(tmp_path):
 import wtflow
 
 
-@wtflow.workflow(name="hello-world")
+@wtflow.wf(name="hello-world")
 def workflow_1():
     return wtflow.Node(
         name="Root Node",
@@ -19,7 +19,7 @@ def workflow_1():
     )
 
 
-@wtflow.workflow
+@wtflow.wf
 def workflow_2():
     return wtflow.Node(
         name="Root Node",
