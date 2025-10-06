@@ -11,7 +11,7 @@ def wtflie(tmp_path):
 import wtflow
 
 
-@wtflow.workflow("hello-world")
+@wtflow.workflow(name="hello-world")
 def workflow_1():
     """A simple workflow that prints Hello World"""
     return wtflow.Node(
