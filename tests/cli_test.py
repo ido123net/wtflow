@@ -22,7 +22,7 @@ def workflow_1():
 @wtflow.wf
 def workflow_2():
     return wtflow.Node(
-        name="Root Node",
+        name="workflow-2",
         executable=wtflow.Command("echo 'Workflow 2'"),
     )
 """)
