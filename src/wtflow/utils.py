@@ -2,13 +2,9 @@ import importlib.util
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import Type, TypeVar
+from typing import TypeVar
 
 T = TypeVar("T")
-
-
-def get_attr_by_type(module: ModuleType, type_: Type[T]) -> list[T]:
-    return [getattr(module, attr) for attr in dir(module) if isinstance(getattr(module, attr), type_)]
 
 
 def import_file(file_path: Path) -> ModuleType:

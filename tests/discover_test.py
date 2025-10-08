@@ -18,6 +18,10 @@ def workflow_1():
         name="Root Node",
         executable=wtflow.Command("echo 'Hello, World!'"),
     )
+
+@wtflow.wf
+def hello_world():
+    return [wtflow.Node(f"hello-world-{x}", wtflow.Command("echo hello world")) for x in ["1", "2", "3"]]
 ''')
     return p
 
@@ -43,14 +47,18 @@ def _():
 
 def test_discover_root_nodes(wtflie):
     root_nodes_dict = discover_root_nodes(wtflie)
-    assert len(root_nodes_dict) == 1
+    assert len(root_nodes_dict) == 4
     assert "hello-world" in root_nodes_dict
+    for i in ["1", "2", "3"]:
+        assert f"hello-world-{i}" in root_nodes_dict
 
 
 def test_discover_from_directory(wtflie):
     root_nodes_dict = discover_root_nodes(wtflie.parent)
-    assert len(root_nodes_dict) == 1
+    assert len(root_nodes_dict) == 4
     assert "hello-world" in root_nodes_dict
+    for i in ["1", "2", "3"]:
+        assert f"hello-world-{i}" in root_nodes_dict
 
 
 def test_file_not_exists():
