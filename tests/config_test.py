@@ -8,14 +8,14 @@ from wtflow.config import Config, DatabaseConfig
 
 def test_from_ini(tmp_path, ini_config):
     config = Config.from_ini(ini_path=ini_config)
-    assert config.database.url == f"sqlite:///{tmp_path}/test.db"
+    assert config.database.database_path == f"{tmp_path}/test.db"
     assert config.run.ignore_failure is True
 
 
 def test_from_ini_no_file(tmp_path, ini_config, monkeypatch):
     monkeypatch.chdir(tmp_path)
     config = Config.from_ini()
-    assert config.database.url == f"sqlite:///{tmp_path}/test.db"
+    assert config.database.database_path == f"{tmp_path}/test.db"
     assert config.run.ignore_failure is True
 
 
@@ -26,7 +26,7 @@ def test_bad_ini_not_clspath():
             """\
             [database]
             factory = unknown
-            url = sqlite:///test.db
+            database_path = test.db
             """
         )
     )
@@ -41,7 +41,7 @@ def test_bad_ini_clspath_not_exists():
             """\
             [database]
             factory = unknown.UnknownClass
-            url = sqlite:///test.db
+            database_path = test.db
             """
         )
     )
@@ -70,7 +70,7 @@ def test_no_type_option():
         dedent(
             """\
             [database]
-            url = sqlite:///test.db
+            database_path = test.db
             """
         )
     )

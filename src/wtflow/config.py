@@ -25,8 +25,8 @@ class DatabaseConfig:
     def from_db_section(cls, section: SectionProxy) -> Self:
         raise NotImplementedError
 
-    def create_db_service(self, storage_service: StorageServiceInterface) -> DBServiceInterface:
-        return NoDBService(storage_service)
+    def create_db_service(self) -> DBServiceInterface:
+        return NoDBService()
 
     @classmethod
     def from_config_parser(cls, config: ConfigParser) -> DatabaseConfig:
@@ -41,19 +41,19 @@ class DatabaseConfig:
 
 
 @dataclass
-class SQLAlchemyConfig(DatabaseConfig):
-    url: str
+class Sqlite3Config(DatabaseConfig):
+    database_path: str
 
     @classmethod
-    def from_db_section(cls, section: SectionProxy) -> SQLAlchemyConfig:
-        url = section.get("url", fallback="sqlite://")
-        assert url is not None
-        return cls(url=url)
+    def from_db_section(cls, section: SectionProxy) -> Sqlite3Config:
+        database_path = section.get("database_path", fallback=".wtflow.db")
+        assert database_path is not None
+        return cls(database_path=database_path)
 
-    def create_db_service(self, storage_service: StorageServiceInterface) -> DBServiceInterface:
-        from wtflow.db.orm.service import OrmDBService
+    def create_db_service(self) -> DBServiceInterface:
+        from wtflow.db.sqlite.service import Sqlite3DBService
 
-        return OrmDBService(storage_service, self.url)
+        return Sqlite3DBService(self.database_path)
 
 
 @dataclass

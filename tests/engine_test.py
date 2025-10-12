@@ -1,6 +1,6 @@
 import pytest
 
-from wtflow.config import Config, LocalStorageConfig, RunConfig, SQLAlchemyConfig
+from wtflow.config import Config, LocalStorageConfig, RunConfig, Sqlite3Config
 from wtflow.infra.engine import Engine
 from wtflow.infra.executables import Command, PyFunc
 from wtflow.infra.nodes import Node
@@ -15,8 +15,8 @@ def data_dir(tmp_path_factory):
 
 @pytest.fixture()
 def db_config(data_dir):
-    url = f"sqlite:///{data_dir}/test.db"
-    return SQLAlchemyConfig(url=url)
+    database_path = f"{data_dir}/test.db"
+    return Sqlite3Config(database_path=database_path)
 
 
 @pytest.fixture()

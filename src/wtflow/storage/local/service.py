@@ -8,16 +8,6 @@ class LocalStorageService(StorageServiceInterface):
     def __init__(self, base_path: pathlib.Path | str) -> None:
         self.base_path = pathlib.Path(base_path)
 
-    def get_artifact_uri(
-        self,
-        artifact: wtflow.Artifact,
-        workflow: wtflow.Workflow,
-        node: wtflow.Node,
-    ) -> str | None:
-        path = self._get_path(artifact, workflow, node)
-        artifact.uri = path.absolute().as_uri()
-        return artifact.uri
-
     def _get_path(
         self,
         artifact: wtflow.Artifact,

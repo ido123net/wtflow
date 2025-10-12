@@ -22,7 +22,7 @@ class Engine:
         self.workflow = workflow
         self.config = config or Config.from_ini()
         self.storage_service = self.config.storage.create_storage_service()
-        self.db_service = self.config.database.create_db_service(self.storage_service)
+        self.db_service = self.config.database.create_db_service()
         self.dry_run = dry_run
 
     def _read_stream(self, stream: IO[bytes], node: Node, artifact_name: str) -> bytes:

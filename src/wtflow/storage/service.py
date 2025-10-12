@@ -8,15 +8,6 @@ import wtflow
 
 class StorageServiceInterface(ABC):
     @abstractmethod
-    def get_artifact_uri(
-        self,
-        artifact: wtflow.Artifact,
-        workflow: wtflow.Workflow,
-        node: wtflow.Node,
-    ) -> str | None:
-        raise NotImplementedError
-
-    @abstractmethod
     def append_to_artifact(
         self,
         artifact: wtflow.Artifact,
@@ -28,14 +19,6 @@ class StorageServiceInterface(ABC):
 
 
 class NoStorageService(StorageServiceInterface):
-    def get_artifact_uri(
-        self,
-        artifact: wtflow.Artifact,
-        workflow: wtflow.Workflow,
-        node: wtflow.Node,
-    ) -> str | None:
-        return None
-
     def append_to_artifact(
         self,
         artifact: wtflow.Artifact,

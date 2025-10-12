@@ -13,8 +13,8 @@ def ini_config(tmp_path):
             dedent(
                 f"""\
                 [database]
-                factory = wtflow.config.SQLAlchemyConfig
-                url = sqlite:///{tmp_path}/test.db
+                factory = wtflow.config.Sqlite3Config
+                database_path = {tmp_path}/test.db
 
                 [storage]
                 factory = wtflow.config.LocalStorageConfig

@@ -5,13 +5,9 @@ from collections.abc import Generator
 from contextlib import contextmanager
 
 import wtflow
-from wtflow.storage.service import StorageServiceInterface
 
 
 class DBServiceInterface(ABC):
-    def __init__(self, storage_service: StorageServiceInterface) -> None:
-        self.storage_service = storage_service
-
     @abstractmethod
     def add_workflow(self, workflow: wtflow.Workflow) -> None:
         raise NotImplementedError
