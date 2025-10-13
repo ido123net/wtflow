@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import pathlib
 import sys
 from configparser import ConfigParser, SectionProxy
@@ -17,6 +18,8 @@ else:  # pragma: <3.11 cover
     from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
+
+NO_CONFIG = "WTFLOW_NO_CONFIG"
 
 
 @dataclass
@@ -111,6 +114,9 @@ class Config:
 
     @classmethod
     def from_ini(cls, ini_path: str | pathlib.Path | None = None) -> Config:
+        if os.environ.get(NO_CONFIG, False) and not ini_path:
+            return cls()
+
         ini_path = ini_path or pathlib.Path(f"{wtflow.__name__}.ini")
 
         config = ConfigParser()
