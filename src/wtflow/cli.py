@@ -1,9 +1,10 @@
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import Sequence
 
-from wtflow.config import Config
+from wtflow.config import NO_CONFIG, Config
 from wtflow.discover import discover_root_nodes
 from wtflow.infra.engine import Engine
 from wtflow.infra.workflow import Workflow
@@ -47,7 +48,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     config = None
-    if args.no_config:
+    if args.no_config or (os.environ.get(NO_CONFIG, False) and not args.config):
         config = Config()
     elif args.config:
         config = Config.from_ini(args.config)
