@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 import wtflow
 from wtflow.db.service import DBServiceInterface, NoDBService
 from wtflow.storage.service import NoStorageService, StorageServiceInterface
-from wtflow.utils import import_module
+from wtflow.utils import load_clspath
 
 if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
     from typing import Self
@@ -36,9 +36,7 @@ class DatabaseConfig:
         if not config.has_section("database"):
             return cls()
         factory_clspath = config.get("database", "factory")
-        module_path, class_name = factory_clspath.rsplit(".", 1)
-        module = import_module(module_path)
-        factory: DatabaseConfig = getattr(module, class_name)
+        factory: DatabaseConfig = load_clspath(factory_clspath)
         database_section = config["database"]
         return factory.from_db_section(database_section)
 
@@ -73,9 +71,7 @@ class StorageConfig:
         if not config.has_section("storage"):
             return cls()
         factory_clspath = config.get("storage", "factory")
-        module_path, class_name = factory_clspath.rsplit(".", 1)
-        module = import_module(module_path)
-        factory: StorageConfig = getattr(module, class_name)
+        factory: StorageConfig = load_clspath(factory_clspath)
         storage_section = config["storage"]
         return factory.from_storage_section(storage_section)
 
