@@ -85,6 +85,8 @@ def _cmd_run(
     config: Config | None = None,
     dry_run: bool = False,
 ) -> int:
+    if os.getcwd() not in sys.path:
+        sys.path.insert(0, os.getcwd())
     if not workflow_dict:
         print("No workflows found.", file=sys.stderr)
         return 1

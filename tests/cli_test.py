@@ -107,3 +107,33 @@ def test_workflow_not_found(capsys):
     assert res == 1
     _, err = capsys.readouterr()
     assert err == "Error: Workflow 'workflow-2' not found.\n"
+
+
+@pytest.fixture()
+def wtfile_with_py_func(tmp_path):
+    p = tmp_path / "wtfile.py"
+    with open(p, "w") as f:
+        f.write("""\
+import wtflow
+
+def func():
+    print("hello world")
+
+
+@wtflow.wf(name="hello-world")
+def workflow_1():
+    return wtflow.Node(
+        name="Root Node",
+        executable=wtflow.PyFunc(func),
+    )
+""")
+    return p
+
+
+def test_run_with_py_func(tmp_path, monkeypatch, wtfile_with_py_func, capsys):
+    monkeypatch.chdir(tmp_path)
+    res = main(["run"])
+    assert res == 0
+    out, err = capsys.readouterr()
+    assert out == "hello world\n"
+    assert err == ""
