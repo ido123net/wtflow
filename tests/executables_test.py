@@ -71,7 +71,7 @@ def _f_partial_stdout():  # pragma: no cover (this will only run partially)
 
 
 def test_partial_stdout_pyfunc():
-    executable = PyFunc(_f_partial_stdout, timeout=1)
+    executable = PyFunc(_f_partial_stdout, timeout=0.1)
     executor = get_executor(executable)
     result = executor.execute()
     assert result.retcode == -15
