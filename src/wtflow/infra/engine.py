@@ -31,6 +31,7 @@ class Engine:
             artifact = node.get_artifact(artifact_name)
             self.storage_service.append_to_artifact(artifact, self.workflow, node, line)
             res += line
+        stream.close()
         return res
 
     def _wait_node(self, executor: Executor, node: Node) -> Result:
