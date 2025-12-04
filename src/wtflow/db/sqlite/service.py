@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Generator
 
 import wtflow
 from wtflow.db.service import DBServiceInterface
@@ -14,11 +16,12 @@ class Sqlite3DBService(DBServiceInterface):
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._create_tables()
 
-    def _get_connection(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.database_path)
+    @contextmanager
+    def _get_connection(self) -> Generator[sqlite3.Connection]:
         sqlite3.register_adapter(datetime, self._adapt_datetime)
 
-        return conn
+        with closing(sqlite3.connect(self.database_path)) as cx:
+            yield cx
 
     @staticmethod
     def _adapt_datetime(dt: datetime) -> str:

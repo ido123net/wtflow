@@ -27,6 +27,7 @@ def _read_stream(stream: IO[bytes], callback: Callable[[bytes], int]) -> bytes:
     for line in iter(stream.readline, b""):
         callback(line)
         res += line
+    stream.close()
     return res
 
 
