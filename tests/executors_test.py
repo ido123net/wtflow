@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from wtflow.infra.executables import Command, PyFunc
@@ -22,3 +24,17 @@ def test_multiprocessing_executor_with_command():
 
     with pytest.raises(TypeError, match="expected PyFunc, not Command"):
         executor._wait(command)
+
+
+def func():
+    print("hello world")
+
+
+def test_multiprocessing_pipe():
+    executable = PyFunc(func)
+    executor = MultiprocessingExecutor(executable)
+    r, w = os.pipe()
+    executor._execute(executable, w, w)
+    os.close(w)
+    with os.fdopen(r, "rb") as f:
+        assert f.read() == b"hello world\n"

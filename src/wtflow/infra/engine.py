@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict
 from typing import IO, TYPE_CHECKING
@@ -34,14 +35,14 @@ class Engine:
         stream.close()
         return res
 
-    def _wait_node(self, executor: Executor, node: Node) -> Result:
-        assert executor.stdout is not None
-        assert executor.stderr is not None
+    def _wait_node(self, executor: Executor, node: Node, stdout_fd: int, stderr_fd: int) -> Result:
         assert node.executable
+        stdout = os.fdopen(stdout_fd, "rb")
+        stderr = os.fdopen(stderr_fd, "rb")
         with ThreadPoolExecutor(max_workers=3) as pool:
             _retcode_f = pool.submit(executor._wait, node.executable)
-            _stdout_f = pool.submit(self._read_stream, executor.stdout, node, "stdout")
-            _stderr_f = pool.submit(self._read_stream, executor.stderr, node, "stderr")
+            _stdout_f = pool.submit(self._read_stream, stdout, node, "stdout")
+            _stderr_f = pool.submit(self._read_stream, stderr, node, "stderr")
 
         return Result(
             retcode=_retcode_f.result(),
@@ -53,11 +54,16 @@ class Engine:
         if not node.executable:
             return self.execute_children(node.children, node.parallel)
 
+        stdout_rx, stdout_tx = os.pipe()
+        stderr_rx, stderr_tx = os.pipe()
+
         logger.debug(f"Executing node {node.name!r}")
         with self.db_service.execute(self.workflow, node):
             executor = get_executor(node.executable)
-            executor._execute(node.executable)
-            node.result = self._wait_node(executor, node)
+            executor._execute(node.executable, stdout_tx, stderr_tx)
+            os.close(stdout_tx)
+            os.close(stderr_tx)
+            node.result = self._wait_node(executor, node, stdout_rx, stderr_rx)
 
         if node.fail:
             return 1
