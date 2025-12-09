@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict
 from typing import IO, TYPE_CHECKING
 
 import yaml
@@ -86,10 +85,7 @@ class Engine:
 
     def run(self) -> int:
         if self.dry_run:
-            flow_dict = asdict(
-                self.workflow, dict_factory=lambda x: {k: v for k, v in x if not k.startswith("_") and bool(v)}
-            )
-            print(yaml.dump(flow_dict, indent=2, sort_keys=False), end="")
+            print(yaml.dump(self.workflow.to_dict(), indent=2, sort_keys=False), end="")
             return 0
 
         self.db_service.add_workflow(self.workflow)

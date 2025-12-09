@@ -86,3 +86,8 @@ def test_partial_stdout_pyfunc(capfdbinary):
     stdout, stderr = capfdbinary.readouterr()
     assert stdout == b"Hello\n"
     assert stderr == b""
+
+
+def test_PyFunc_to_dict():
+    py_func = PyFunc(func)
+    assert py_func.to_dict() == {"cmd": f"wtfunc {func.__module__}.{func.__name__}"}

@@ -1,6 +1,7 @@
 import pytest
 
-from wtflow.cli import _cmd_list, _cmd_run, main
+from wtflow.cli import wtfunc
+from wtflow.cli.main import _cmd_list, _cmd_run, main
 
 
 @pytest.fixture()
@@ -136,4 +137,36 @@ def test_run_with_py_func(tmp_path, monkeypatch, wtfile_with_py_func, capsys):
     assert res == 0
     out, err = capsys.readouterr()
     assert out == "hello world\n"
+    assert err == ""
+
+
+def func(x: int, y: int):
+    print(f"{x + y = }")
+
+
+@pytest.fixture
+def yaml_wtfile(tmp_path):
+    p = tmp_path / "wtfile.yaml"
+    with open(p, "w") as f:
+        f.write("""\
+name: wf2
+root:
+  name: wf2
+  executable:
+    cmd: wtfunc tests.cli_test.func 5 10
+""")
+    return p
+
+
+def test_yaml_wtfile(yaml_wtfile, capsys):
+    main(["--file", str(yaml_wtfile), "run"])
+    out, err = capsys.readouterr()
+    assert err == ""
+    assert out == "x + y = 15\n"
+
+
+def test_wtflow_func(capsys):
+    wtfunc.main(["tests.cli_test.func", "5", "10"])
+    out, err = capsys.readouterr()
+    assert out == "x + y = 15\n"
     assert err == ""
