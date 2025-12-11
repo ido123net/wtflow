@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Type
+
+if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
+    from typing import Self
+else:  # pragma: <3.11 cover
+    from typing_extensions import Self
 
 if TYPE_CHECKING:
     from wtflow.infra.executors import Executor
@@ -15,6 +21,9 @@ class Executable(ABC):
     @classmethod
     @abstractmethod
     def get_executor(cls) -> Type[Executor]: ...
+
+    @abstractmethod
+    def to_dict(self) -> dict[str, Any]: ...
 
 
 @dataclass
@@ -29,6 +38,16 @@ class PyFunc(Executable):
 
         return MultiprocessingExecutor
 
+    def to_dict(self) -> dict[str, Any]:
+        args = [str(arg) for arg in self.args]
+        kwargs = [f"--{key} {str(value)}" for key, value in self.kwargs.items()]
+        cmd = f"wtfunc {self.func.__module__}.{self.func.__name__}"
+        if args:
+            cmd = f"{cmd} {' '.join(args)}"
+        if kwargs:
+            cmd = f"{cmd} {' '.join(kwargs)}"
+        return {"cmd": cmd}
+
 
 @dataclass
 class Command(Executable):
@@ -39,3 +58,10 @@ class Command(Executable):
         from wtflow.infra.executors import SubprocessExecutor
 
         return SubprocessExecutor
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> Self:
+        return cls(**d)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"cmd": self.cmd}

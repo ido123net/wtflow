@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import itertools
+import sys
 from dataclasses import dataclass, field
-from typing import Iterator
+from typing import Any, Iterator
 
 from wtflow.infra.nodes import Node
+
+if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
+    from typing import Self
+else:  # pragma: <3.11 cover
+    from typing_extensions import Self
 
 
 @dataclass
@@ -38,3 +44,13 @@ class Workflow:
     def __post_init__(self) -> None:
         counter = itertools.count(1)
         self._init_node(self.root, counter)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> Self:
+        return cls(d["name"], root=Node.from_dict(d["root"]))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "root": self.root.to_dict(),
+        }

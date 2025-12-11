@@ -1,6 +1,8 @@
 import os
+from typing import Annotated
 
 import pytest
+import typer
 
 from wtflow.config import NO_CONFIG, Config, LocalStorageConfig, RunConfig, Sqlite3Config
 from wtflow.infra.engine import Engine
@@ -154,7 +156,7 @@ def test_with_db_and_storage_config(db_config, local_storage_config):
     assert engine.run() == 0
 
 
-def func(*args, **kwargs): ...
+def func(x: int, y: int, a: Annotated[int, typer.Option()]): ...
 
 
 def test_dry_run(capsys):
@@ -181,12 +183,6 @@ root:
       cmd: echo 'Hello'
   - name: Node 2
     executable:
-      func: !!python/name:tests.engine_test.func ''
-      args: !!python/tuple
-      - 1
-      - 2
-      kwargs:
-        a: 3
+      cmd: wtfunc tests.engine_test.func 1 2 --a 3
 """
-    print(out)
     assert out == expected_out
