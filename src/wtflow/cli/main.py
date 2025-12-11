@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
+import yaml
+
 from wtflow.config import NO_CONFIG, Config
 from wtflow.discover import discover_root_nodes
 from wtflow.infra.engine import Engine
@@ -11,6 +13,8 @@ from wtflow.infra.workflow import Workflow
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    if os.getcwd() not in sys.path:
+        sys.path.insert(0, os.getcwd())
     parser = argparse.ArgumentParser(prog="wtflow", description="Wtflow - Workflow orchestration tool")
 
     parser.add_argument(
@@ -53,11 +57,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.config:
         config = Config.from_ini(args.config)
 
-    if not args.workflows_path.exists():
+    wf_path: Path = args.workflows_path
+    if not wf_path.exists():
         print(f"Error: The specified workflows path '{args.workflows_path}' does not exist.", file=sys.stderr)
         return 1
 
-    workflow_dict = discover_root_nodes(args.workflows_path)
+    if wf_path.suffix == ".py":
+        workflow_dict = discover_root_nodes(args.workflows_path)
+    elif wf_path.suffix in [".yaml", ".yml"]:
+        wf = Workflow.from_dict(yaml.safe_load(wf_path.read_text()))
+        workflow_dict = {wf.name: wf}
+    else:
+        raise NotImplementedError
 
     if args.command == "list":
         return _cmd_list(workflow_dict)
@@ -85,8 +96,6 @@ def _cmd_run(
     config: Config | None = None,
     dry_run: bool = False,
 ) -> int:
-    if os.getcwd() not in sys.path:
-        sys.path.insert(0, os.getcwd())
     if not workflow_dict:
         print("No workflows found.", file=sys.stderr)
         return 1
@@ -102,8 +111,8 @@ def _cmd_run(
         wfs = [workflow_dict[workflow_name]]
 
     for wf in wfs:
-        engine = Engine(workflow=wf, config=config, dry_run=dry_run)
-        res += engine.run()
+        engine = Engine(config=config)
+        res += engine.run_workflow(workflow=wf, dry_run=dry_run)
 
     return min(res, 1)
 
