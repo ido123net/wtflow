@@ -53,8 +53,8 @@ def test_run():
             ],
         ),
     )
-    engine = Engine(wf)
-    engine.run()
+    engine = Engine()
+    engine.run_workflow(wf)
 
 
 def test_fail_run():
@@ -65,9 +65,9 @@ def test_fail_run():
             executable=Command(cmd="command-not-exist"),
         ),
     )
-    engine = Engine(wf)
-    assert engine.run() == 1
-    assert b"not found" in engine.workflow.root.result.stderr
+    engine = Engine()
+    assert engine.run_workflow(wf) == 1
+    assert b"not found" in wf.root.result.stderr
 
 
 def test_stop_on_failure():
@@ -89,9 +89,9 @@ def test_stop_on_failure():
             ],
         ),
     )
-    engine = Engine(wf, config=Config())
-    assert engine.run() == 1
-    assert engine.workflow.root.children[2].result is None
+    engine = Engine(config=Config())
+    assert engine.run_workflow(wf) == 1
+    assert wf.root.children[2].result is None
 
 
 def test_continue_on_failure():
@@ -106,9 +106,9 @@ def test_continue_on_failure():
             ],
         ),
     )
-    engine = Engine(wf, config=config)
-    assert engine.run() == 1
-    assert engine.workflow.root.children[1].result.stdout == b"run anyway\n"
+    engine = Engine(config=config)
+    assert engine.run_workflow(wf) == 1
+    assert wf.root.children[1].result.stdout == b"run anyway\n"
 
 
 def test_with_db_config(db_config):
@@ -122,8 +122,8 @@ def test_with_db_config(db_config):
             ],
         ),
     )
-    engine = Engine(wf, config=config)
-    assert engine.run() == 0
+    engine = Engine(config=config)
+    assert engine.run_workflow(wf) == 0
 
 
 def test_with_storage_config(local_storage_config):
@@ -137,8 +137,8 @@ def test_with_storage_config(local_storage_config):
             ],
         ),
     )
-    engine = Engine(wf, config=config)
-    assert engine.run() == 0
+    engine = Engine(config=config)
+    assert engine.run_workflow(wf) == 0
 
 
 def test_with_db_and_storage_config(db_config, local_storage_config):
@@ -152,8 +152,8 @@ def test_with_db_and_storage_config(db_config, local_storage_config):
             ],
         ),
     )
-    engine = Engine(wf, config=config)
-    assert engine.run() == 0
+    engine = Engine(config=config)
+    assert engine.run_workflow(wf) == 0
 
 
 def func(x: int, y: int, a: Annotated[int, typer.Option()]): ...
@@ -170,8 +170,8 @@ def test_dry_run(capsys):
             ],
         ),
     )
-    engine = Engine(wf, dry_run=True)
-    assert engine.run() == 0
+    engine = Engine()
+    assert engine.run_workflow(wf, dry_run=True) == 0
     out, _ = capsys.readouterr()
     expected_out = """\
 name: test dry run

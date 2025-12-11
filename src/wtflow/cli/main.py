@@ -111,8 +111,8 @@ def _cmd_run(
         wfs = [workflow_dict[workflow_name]]
 
     for wf in wfs:
-        engine = Engine(workflow=wf, config=config, dry_run=dry_run)
-        res += engine.run()
+        engine = Engine(config=config)
+        res += engine.run_workflow(workflow=wf, dry_run=dry_run)
 
     return min(res, 1)
 
