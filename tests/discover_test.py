@@ -7,13 +7,12 @@ from wtflow.discover import discover_root_nodes
 def wtflie(tmp_path):
     p = tmp_path / "wtfile.py"
     with open(p, "w") as f:
-        f.write('''\
+        f.write("""\
 import wtflow
 
 
 @wtflow.wf(name="hello-world")
 def workflow_1():
-    """A simple workflow that prints Hello World"""
     return wtflow.Node(
         name="Root Node",
         executable=wtflow.Command("echo 'Hello, World!'"),
@@ -22,7 +21,7 @@ def workflow_1():
 @wtflow.wf
 def hello_world():
     return [wtflow.Node(f"hello-world-{x}", wtflow.Command("echo hello world")) for x in ["1", "2", "3"]]
-''')
+""")
     return p
 
 
