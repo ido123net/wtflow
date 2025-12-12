@@ -19,8 +19,6 @@ class Result(NamedTuple):
 
 
 class Executor(ABC):
-    """Base class for execution logic."""
-
     def __init__(self, executable: Executable) -> None:
         self.executable = executable
         self.stdout: IO[bytes] | None = None
@@ -39,8 +37,6 @@ class Executor(ABC):
 
 
 class MultiprocessingExecutor(Executor):
-    """Runs a Python function asynchronously in a separate process using os.pipe."""
-
     def _execute(self, executable: Executable, stdout: int | None = None, stderr: int | None = None) -> None:
         if not isinstance(executable, PyFunc):
             raise TypeError(f"expected PyFunc, not {type(executable).__name__}")
@@ -73,8 +69,6 @@ class MultiprocessingExecutor(Executor):
 
 
 class SubprocessExecutor(Executor):
-    """Runs an external command asynchronously using subprocess."""
-
     def _execute(self, executable: Executable, stdout: int | None = None, stderr: int | None = None) -> None:
         if not isinstance(executable, Command):
             raise TypeError(f"expected Command, not {type(executable).__name__}")
