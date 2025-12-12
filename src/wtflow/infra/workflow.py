@@ -13,9 +13,9 @@ from wtflow.infra.nodes import Node
 
 if TYPE_CHECKING:
     from wtflow.config import RunConfig
-    from wtflow.db.service import DBServiceInterface
     from wtflow.infra.nodes import Node
-    from wtflow.storage.service import StorageServiceInterface
+    from wtflow.services.db.service import DBServiceInterface
+    from wtflow.services.storage.service import StorageServiceInterface
 
 if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
     from typing import Self

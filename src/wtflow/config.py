@@ -8,8 +8,8 @@ from configparser import ConfigParser, SectionProxy
 from dataclasses import dataclass, field
 
 import wtflow
-from wtflow.db.service import DBServiceInterface, NoDBService
-from wtflow.storage.service import NoStorageService, StorageServiceInterface
+from wtflow.services.db.service import DBServiceInterface, NoDBService
+from wtflow.services.storage.service import NoStorageService, StorageServiceInterface
 from wtflow.utils import load_clspath
 
 if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
@@ -52,7 +52,7 @@ class Sqlite3Config(DatabaseConfig):
         return cls(database_path=database_path)
 
     def create_db_service(self) -> DBServiceInterface:
-        from wtflow.db.sqlite.service import Sqlite3DBService
+        from wtflow.services.db.sqlite.service import Sqlite3DBService
 
         return Sqlite3DBService(self.database_path)
 
@@ -88,7 +88,7 @@ class LocalStorageConfig(StorageConfig):
         return cls(base_path=base_path)
 
     def create_storage_service(self) -> StorageServiceInterface:
-        from wtflow.storage.local.service import LocalStorageService
+        from wtflow.services.storage.local.service import LocalStorageService
 
         return LocalStorageService(base_path=self.base_path)
 

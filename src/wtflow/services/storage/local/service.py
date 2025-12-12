@@ -1,7 +1,7 @@
 import pathlib
 
 import wtflow
-from wtflow.storage.service import StorageServiceInterface
+from wtflow.services.storage.service import StorageServiceInterface
 
 
 class LocalStorageService(StorageServiceInterface):

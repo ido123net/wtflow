@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Generator
 
 import wtflow
-from wtflow.db.service import DBServiceInterface
+from wtflow.services.db.service import DBServiceInterface
 
 
 class Sqlite3DBService(DBServiceInterface):
