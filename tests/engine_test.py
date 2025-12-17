@@ -1,12 +1,10 @@
 import os
-from typing import Annotated
 
 import pytest
-import typer
 
 from wtflow.config import NO_CONFIG, Config, LocalStorageConfig, RunConfig, Sqlite3Config
 from wtflow.infra.engine import Engine
-from wtflow.infra.executables import Command, PyFunc
+from wtflow.infra.executables import Command
 from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Workflow
 
@@ -156,9 +154,6 @@ def test_with_db_and_storage_config(db_config, local_storage_config):
     assert engine.run_workflow(wf) == 0
 
 
-def func(x: int, y: int, a: Annotated[int, typer.Option()]): ...
-
-
 def test_dry_run(capsys):
     wf = Workflow(
         name="test dry run",
@@ -166,7 +161,6 @@ def test_dry_run(capsys):
             name="Root Node",
             children=[
                 Node(name="Node 1", executable=Command(cmd="echo 'Hello'")),
-                Node(name="Node 2", executable=PyFunc(func=func, args=(1, 2), kwargs={"a": 3})),
             ],
         ),
     )
@@ -174,15 +168,19 @@ def test_dry_run(capsys):
     assert engine.run_workflow(wf, dry_run=True) == 0
     out, _ = capsys.readouterr()
     expected_out = """\
-name: test dry run
-root:
-  name: Root Node
-  children:
-  - name: Node 1
-    executable:
-      cmd: echo 'Hello'
-  - name: Node 2
-    executable:
-      cmd: wtfunc tests.engine_test.func 1 2 --a 3
+{
+  "name": "test dry run",
+  "root": {
+    "name": "Root Node",
+    "children": [
+      {
+        "name": "Node 1",
+        "executable": {
+          "cmd": "echo 'Hello'"
+        }
+      }
+    ]
+  }
+}
 """
     assert out == expected_out

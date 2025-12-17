@@ -4,8 +4,6 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-import yaml
-
 from wtflow.config import NO_CONFIG, Config
 from wtflow.discover import discover_root_nodes
 from wtflow.infra.engine import Engine
@@ -64,9 +62,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if wf_path.suffix == ".py":
         workflow_dict = discover_root_nodes(args.workflows_path)
-    elif wf_path.suffix in [".yaml", ".yml"]:
-        wf = Workflow.from_dict(yaml.safe_load(wf_path.read_text()))
-        workflow_dict = {wf.name: wf}
     else:
         raise NotImplementedError
 
