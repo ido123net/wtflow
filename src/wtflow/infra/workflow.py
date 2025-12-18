@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import itertools
 import logging
 import os
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import IO, TYPE_CHECKING, Iterator
+from typing import IO, TYPE_CHECKING
+from uuid import uuid4
 
 from wtflow.infra.executors import Executor, Result
 from wtflow.infra.nodes import Node
@@ -19,37 +20,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Workflow:
     name: str
     root: Node
 
-    _id: int | None = field(default=None, repr=False, init=False)
-
-    @property
-    def nodes(self) -> list[Node]:
-        return self._get_nodes(self.root)
-
-    @property
-    def id(self) -> str:
-        _id = self._id or self.name
-        return str(_id)
-
-    def _get_nodes(self, node: Node) -> list[Node]:
-        nodes = [node]
-        for child in node.children:
-            nodes.extend(self._get_nodes(child))
-        return nodes
-
-    def _init_node(self, node: Node, counter: Iterator[int]) -> None:
-        node._lft = next(counter)
-        for child in node.children:
-            self._init_node(child, counter)
-        node._rgt = next(counter)
-
-    def __post_init__(self) -> None:
-        counter = itertools.count(1)
-        self._init_node(self.root, counter)
+    id: str = field(default_factory=lambda: uuid4().hex, repr=False, init=False)
 
 
 class WorkflowExecutor:
@@ -64,12 +40,12 @@ class WorkflowExecutor:
         self.storage_service = storage_service
         self.db_service = db_service
         self.run_config = run_config
+        self._node_result: dict[Node, Result | None] = defaultdict(lambda: None)
 
-    def _read_stream(self, stream: IO[bytes], node: Node, artifact_name: str) -> bytes:
+    def _read_stream(self, stream: IO[bytes], node: Node, stream_name: str) -> bytes:
         res = b""
         for line in iter(stream.readline, b""):
-            artifact = node.get_artifact(artifact_name)
-            self.storage_service.append_to_artifact(artifact, self.workflow, node, line)
+            self.storage_service.append_to_artifact(self.workflow, node, stream_name, line)
             res += line
         stream.close()
         return res
@@ -100,17 +76,21 @@ class WorkflowExecutor:
         stderr_rx, stderr_tx = os.pipe()
 
         logger.debug(f"Executing node {node.name!r}")
-        with self.db_service.execute(self.workflow, node):
-            executor = Executor(node.executable)
-            executor._execute(node.executable, stdout_tx, stderr_tx)
-            os.close(stdout_tx)
-            os.close(stderr_tx)
-            node.result = self._wait_node(executor, node, stdout_rx, stderr_rx)
+        self.db_service.start_execution(self.workflow, node)
+        executor = Executor(node.executable)
+        executor._execute(node.executable, stdout_tx, stderr_tx)
+        os.close(stdout_tx)
+        os.close(stderr_tx)
+        result = self._wait_node(executor, node, stdout_rx, stderr_rx)
+        self._node_result[node] = result
+        self.db_service.end_execution(self.workflow, node, result)
 
-        if node.fail:
+        fail = result.retcode != 0
+
+        if fail:
             return 1
 
-        return int(node.fail) + self.execute_children(node.children, node.parallel)
+        return int(fail) + self.execute_children(node.children, node.parallel)
 
     def execute_children(self, children: list[Node], parallel: bool) -> int:
         if parallel:
@@ -125,3 +105,6 @@ class WorkflowExecutor:
                 if not self.run_config.ignore_failure and failing_nodes > 0:
                     break
             return failing_nodes
+
+    def node_result(self, node: Node) -> Result | None:
+        return self._node_result[node]
