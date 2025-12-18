@@ -3,12 +3,11 @@ from __future__ import annotations
 import itertools
 import logging
 import os
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import IO, TYPE_CHECKING, Any, Iterator
+from typing import IO, TYPE_CHECKING, Iterator
 
-from wtflow.infra.executors import Executor, Result, get_executor
+from wtflow.infra.executors import Executor, Result
 from wtflow.infra.nodes import Node
 
 if TYPE_CHECKING:
@@ -16,12 +15,6 @@ if TYPE_CHECKING:
     from wtflow.infra.nodes import Node
     from wtflow.services.db.service import DBServiceInterface
     from wtflow.services.storage.service import StorageServiceInterface
-
-if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
-    from typing import Self
-else:  # pragma: <3.11 cover
-    from typing_extensions import Self
-
 
 logger = logging.getLogger(__name__)
 
@@ -57,16 +50,6 @@ class Workflow:
     def __post_init__(self) -> None:
         counter = itertools.count(1)
         self._init_node(self.root, counter)
-
-    @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> Self:
-        return cls(d["name"], root=Node.from_dict(d["root"]))
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "root": self.root.to_dict(),
-        }
 
 
 class WorkflowExecutor:
@@ -118,7 +101,7 @@ class WorkflowExecutor:
 
         logger.debug(f"Executing node {node.name!r}")
         with self.db_service.execute(self.workflow, node):
-            executor = get_executor(node.executable)
+            executor = Executor(node.executable)
             executor._execute(node.executable, stdout_tx, stderr_tx)
             os.close(stdout_tx)
             os.close(stderr_tx)
