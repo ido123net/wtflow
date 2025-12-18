@@ -10,20 +10,20 @@ class LocalStorageService(StorageServiceInterface):
 
     def _get_path(
         self,
-        artifact: wtflow.Artifact,
         workflow: wtflow.Workflow,
         node: wtflow.Node,
+        name: str,
     ) -> pathlib.Path:
-        return self.base_path / workflow.id / node.id / f"{artifact.name}.txt"
+        return self.base_path / workflow.id / node.id / f"{name}.txt"
 
     def append_to_artifact(
         self,
-        artifact: wtflow.Artifact,
         workflow: wtflow.Workflow,
         node: wtflow.Node,
+        name: str,
         data: bytes,
     ) -> None:
-        artifact_path = self._get_path(artifact, workflow, node)
+        artifact_path = self._get_path(workflow, node, name)
         artifact_path.parent.mkdir(parents=True, exist_ok=True)
         with artifact_path.open("ab") as f:
             f.write(data)

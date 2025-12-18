@@ -1,13 +1,27 @@
 from __future__ import annotations
 
+import itertools
 import sqlite3
 from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Iterator
 
 import wtflow
+from wtflow.infra.executors import Result
 from wtflow.services.db.service import DBServiceInterface
+
+
+def _calculate_left_right(
+    node: wtflow.Node,
+    node_dict: dict[wtflow.Node, tuple[int, int]],
+    counter: Iterator[int],
+) -> None:
+    lft = next(counter)
+    for child in node.children:
+        _calculate_left_right(child, node_dict, counter)
+    rgt = next(counter)
+    node_dict[node] = (lft, rgt)
 
 
 class Sqlite3DBService(DBServiceInterface):
@@ -43,12 +57,13 @@ class Sqlite3DBService(DBServiceInterface):
                 "INSERT INTO workflows (name, created_at) VALUES (?, ?)",
                 (workflow.name, datetime.now(timezone.utc)),
             )
-            workflow_id = cursor.lastrowid
-            assert workflow_id is not None
-            workflow._id = workflow_id
 
-            for node in workflow.nodes:
-                self._add_node(cursor, node, workflow_id)
+            _node_dict: dict[wtflow.Node, tuple[int, int]] = {}
+            counter = itertools.count(1)
+            _calculate_left_right(workflow.root, _node_dict, counter)
+            for node, left_right in _node_dict.items():
+                lft, rgt = left_right
+                self._add_node(cursor, node, workflow.id, lft, rgt)
 
             conn.commit()
 
@@ -60,21 +75,14 @@ class Sqlite3DBService(DBServiceInterface):
                 "INSERT INTO executions (start_at, node_id) VALUES (?, ?)",
                 (datetime.now(timezone.utc), node.id),
             )
-            execution_id = cursor.lastrowid
-
-            for artifact in node.all_artifacts:
-                cursor.execute(
-                    "INSERT INTO artifacts (name, execution_id) VALUES (?, ?)",
-                    (artifact.name, execution_id),
-                )
 
             conn.commit()
 
-    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
+    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: Result | None = None) -> None:
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
-            retcode = node.result.retcode if node.result else None
+            retcode = result.retcode if result else None
 
             cursor.execute(
                 "UPDATE executions SET end_at = ?, retcode = ?  WHERE node_id = ?",
@@ -83,9 +91,8 @@ class Sqlite3DBService(DBServiceInterface):
 
             conn.commit()
 
-    def _add_node(self, cursor: sqlite3.Cursor, node: wtflow.Node, workflow_id: int) -> None:
+    def _add_node(self, cursor: sqlite3.Cursor, node: wtflow.Node, workflow_id: str, lft: int, rgt: int) -> None:
         cursor.execute(
-            "INSERT INTO nodes (name, lft, rgt, workflow_id) VALUES (?, ?, ?, ?)",
-            (node.name, node._lft, node._rgt, workflow_id),
+            "INSERT INTO nodes (id, name, lft, rgt, workflow_id) VALUES (?, ?, ?, ?, ?)",
+            (node.id, node.name, lft, rgt, workflow_id),
         )
-        node._id = cursor.lastrowid

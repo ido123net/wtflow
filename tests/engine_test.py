@@ -65,7 +65,8 @@ def test_fail_run():
     )
     engine = Engine()
     assert engine.run_workflow(wf) == 1
-    assert b"not found" in wf.root.result.stderr
+    root_node_result = engine.get_workflow_executor(wf).node_result(wf.root)
+    assert b"not found" in root_node_result.stderr
 
 
 def test_stop_on_failure():
@@ -89,7 +90,8 @@ def test_stop_on_failure():
     )
     engine = Engine(config=Config())
     assert engine.run_workflow(wf) == 1
-    assert wf.root.children[2].result is None
+    node_result = engine.get_workflow_executor(wf).node_result(wf.root.children[2])
+    assert node_result is None
 
 
 def test_continue_on_failure():
@@ -106,7 +108,8 @@ def test_continue_on_failure():
     )
     engine = Engine(config=config)
     assert engine.run_workflow(wf) == 1
-    assert wf.root.children[1].result.stdout == b"run anyway\n"
+    node_result = engine.get_workflow_executor(wf).node_result(wf.root.children[1])
+    assert node_result.stdout == b"run anyway\n"
 
 
 def test_with_db_config(db_config):
@@ -142,7 +145,7 @@ def test_with_storage_config(local_storage_config):
 def test_with_db_and_storage_config(db_config, local_storage_config):
     config = Config(database=db_config, storage=local_storage_config)
     wf = Workflow(
-        name="test no db",
+        name="test with db",
         root=Node(
             name="Root Node",
             children=[

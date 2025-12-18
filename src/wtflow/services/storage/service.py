@@ -10,9 +10,9 @@ class StorageServiceInterface(ABC):
     @abstractmethod
     def append_to_artifact(
         self,
-        artifact: wtflow.Artifact,
         workflow: wtflow.Workflow,
         node: wtflow.Node,
+        name: str,
         data: bytes,
     ) -> None:
         raise NotImplementedError
@@ -21,14 +21,14 @@ class StorageServiceInterface(ABC):
 class NoStorageService(StorageServiceInterface):
     def append_to_artifact(
         self,
-        artifact: wtflow.Artifact,
         workflow: wtflow.Workflow,
         node: wtflow.Node,
+        name: str,
         data: bytes,
     ) -> None:
-        if artifact.name == "stdout":
+        if name == "stdout":
             sys.stdout.buffer.write(data)
-        elif artifact.name == "stderr":
+        elif name == "stderr":
             sys.stderr.buffer.write(data)
         else:
-            raise NotImplementedError(f"Artifact {artifact.name} is not supported in {self.__class__.__name__}")
+            raise NotImplementedError(f"Artifact {name} is not supported in {self.__class__.__name__}")

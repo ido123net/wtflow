@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Generator
-from contextlib import contextmanager
 
 import wtflow
+from wtflow.infra.executors import Result
 
 
 class DBServiceInterface(ABC):
@@ -17,14 +16,8 @@ class DBServiceInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
+    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: Result | None = None) -> None:
         raise NotImplementedError
-
-    @contextmanager
-    def execute(self, workflow: wtflow.Workflow, node: wtflow.Node) -> Generator[None, None, None]:
-        self.start_execution(workflow, node)
-        yield
-        self.end_execution(workflow, node)
 
 
 class NoDBService(DBServiceInterface):
@@ -34,5 +27,5 @@ class NoDBService(DBServiceInterface):
     def start_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
         pass
 
-    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
+    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: Result | None = None) -> None:
         pass
