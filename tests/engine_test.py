@@ -66,6 +66,7 @@ def test_fail_run():
     engine = Engine()
     assert engine.run_workflow(wf) == 1
     root_node_result = engine.get_workflow_executor(wf).node_result(wf.root)
+    assert root_node_result
     assert b"not found" in root_node_result.stderr
 
 
@@ -109,6 +110,7 @@ def test_continue_on_failure():
     engine = Engine(config=config)
     assert engine.run_workflow(wf) == 1
     node_result = engine.get_workflow_executor(wf).node_result(wf.root.children[1])
+    assert node_result
     assert node_result.stdout == b"run anyway\n"
 
 

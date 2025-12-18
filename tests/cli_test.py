@@ -103,7 +103,7 @@ def test_no_workflow_run(capsys):
 
 
 def test_workflow_not_found(capsys):
-    res = _cmd_run({"workflow-1": None}, "workflow-2")
+    res = _cmd_run({"workflow-1": None}, "workflow-2")  # type: ignore
     assert res == 1
     _, err = capsys.readouterr()
     assert err == "Error: Workflow 'workflow-2' not found.\n"

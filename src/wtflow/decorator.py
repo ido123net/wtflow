@@ -11,7 +11,7 @@ def wf(
     func: Callable[[], wtflow.Node | Iterable[wtflow.Node]] | None = None,
     *,
     name: str | None = None,
-) -> Callable[[Callable[[], wtflow.Node]], None] | None:
+) -> Callable[[Callable[[], wtflow.Node]], None]:
     def decorator(func: Callable[[], wtflow.Node | Iterable[wtflow.Node]]) -> None:
         res = func()
         if isinstance(res, wtflow.Node):
