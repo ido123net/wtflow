@@ -3,11 +3,12 @@ from textwrap import dedent
 
 import pytest
 
-from wtflow.config import Config, DatabaseConfig
+from wtflow.config import Config, DatabaseConfig, Sqlite3Config
 
 
 def test_from_ini(tmp_path, ini_config):
     config = Config.from_ini(ini_path=ini_config)
+    assert isinstance(config.database, Sqlite3Config)
     assert config.database.database_path == f"{tmp_path}/test.db"
     assert config.run.ignore_failure is True
 
@@ -15,6 +16,7 @@ def test_from_ini(tmp_path, ini_config):
 def test_from_ini_no_file(tmp_path, ini_config, monkeypatch):
     monkeypatch.chdir(tmp_path)
     config = Config.from_ini()
+    assert isinstance(config.database, Sqlite3Config)
     assert config.database.database_path == f"{tmp_path}/test.db"
     assert config.run.ignore_failure is True
 
