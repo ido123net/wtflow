@@ -5,7 +5,7 @@ from wtflow.infra.workflow import Workflow
 from wtflow.utils import import_file
 
 
-def discover_root_nodes(path: Path | str) -> dict[str, Workflow]:
+def discover_workflows(path: Path | str) -> dict[str, Workflow]:
     path = Path(path)
 
     if not path.exists():
