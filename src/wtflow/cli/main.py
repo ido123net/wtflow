@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Sequence
 
 from wtflow.config import NO_CONFIG, Config
-from wtflow.discover import discover_root_nodes
+from wtflow.discover import discover_workflows
 from wtflow.infra.engine import Engine
 from wtflow.infra.workflow import Workflow
 
@@ -61,7 +61,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     if wf_path.suffix == ".py":
-        workflow_dict = discover_root_nodes(args.workflows_path)
+        workflow_dict = discover_workflows(args.workflows_path)
     else:
         raise NotImplementedError
 

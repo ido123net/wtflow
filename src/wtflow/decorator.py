@@ -8,25 +8,28 @@ _ALL_WORKFLOWS: dict[str, wtflow.Workflow] = {}
 
 
 def wf(
-    func: Callable[[], wtflow.Node | Iterable[wtflow.Node]] | None = None,
+    func: Callable[[], wtflow.Workflow | wtflow.Node | Iterable[wtflow.Node]] | None = None,
     *,
     name: str | None = None,
 ) -> Callable[[Callable[[], wtflow.Node]], None]:
-    def decorator(func: Callable[[], wtflow.Node | Iterable[wtflow.Node]]) -> None:
+    def decorator(func: Callable[[], wtflow.Workflow | wtflow.Node | Iterable[wtflow.Node]]) -> None:
         res = func()
-        if isinstance(res, wtflow.Node):
-            wf_name = name or res.name
-            _add_workflow(res, wf_name)
+        if isinstance(res, wtflow.Workflow):
+            _add_workflow(res)
+        elif isinstance(res, wtflow.Node):
+            wf_name = name or func.__name__.replace("_", "-")
+            wf = wtflow.Workflow(wf_name, res)
+            _add_workflow(wf)
         else:
-            for root_node in res:
-                wf_name = root_node.name
-                _add_workflow(root_node, wf_name)
+            wf_name = name or func.__name__.replace("_", "-")
+            root_node = wtflow.Node(name=wf_name, children=list(res))
+            wf = wtflow.Workflow(wf_name, root_node)
+            _add_workflow(wf)
 
-    def _add_workflow(root_node: wtflow.Node, wf_name: str) -> None:
-        wf = wtflow.Workflow(wf_name, root_node)
-        if wf_name in _ALL_WORKFLOWS:
-            raise RuntimeError(f"Workflow with name '{wf_name}' already exists.")
-        _ALL_WORKFLOWS[wf_name] = wf
+    def _add_workflow(wf: wtflow.Workflow) -> None:
+        if wf.name in _ALL_WORKFLOWS:
+            raise RuntimeError(f"Workflow with name '{wf.name}' already exists.")
+        _ALL_WORKFLOWS[wf.name] = wf
 
     if func is not None:
         decorator(func)
