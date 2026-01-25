@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from wtflow.infra.executables import Command
 from wtflow.infra.executors import Executor
 
 
 def test_timeout(capfdbinary):
-    executable = Command(cmd="sleep 5 && echo hello", timeout=0.1)
-    executor = Executor(executable)
+    executor = Executor(command="sleep 5 && echo hello", timeout=0.1)
     result = executor.execute()
     assert result.retcode == -15
     assert result.stdout == b""
@@ -17,8 +15,7 @@ def test_timeout(capfdbinary):
 
 
 def test_partial_stdout(capfdbinary):
-    executable = Command(cmd="echo 'Hello' && sleep 2 && echo 'World'", timeout=0.1)
-    executor = Executor(executable)
+    executor = Executor(command="echo 'Hello' && sleep 2 && echo 'World'", timeout=0.1)
     result = executor.execute()
     assert result.retcode == -15
     stdout, stderr = capfdbinary.readouterr()

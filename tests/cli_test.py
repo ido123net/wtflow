@@ -15,7 +15,7 @@ import wtflow
 def workflow_1():
     return wtflow.Node(
         name="Root Node",
-        executable=wtflow.Command(cmd="echo 'Hello, World!'"),
+        command="echo 'Hello, World!'",
     )
 
 
@@ -23,7 +23,7 @@ def workflow_1():
 def workflow_2():
     return wtflow.Node(
         name="workflow-2",
-        executable=wtflow.Command(cmd="echo 'Workflow 2'"),
+        command="echo 'Workflow 2'",
     )
 """)
     return p
