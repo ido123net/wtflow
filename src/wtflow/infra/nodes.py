@@ -1,24 +1,24 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from typing import Iterator
+
+from pydantic import BaseModel
 
 from wtflow.infra.executables import Command
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class Node:
+class Node(BaseModel):
     name: str
     executable: Command | None = None
     parallel: bool = False
-    children: list[Node] = field(default_factory=list)
+    children: list[Node] = []
 
-    _id: int | None = field(default=None, repr=False, init=False)
-    _lft: int | None = field(default=None, repr=False, init=False)
-    _rgt: int | None = field(default=None, repr=False, init=False)
+    _id: int | None = None
+    _lft: int | None = None
+    _rgt: int | None = None
 
     @property
     def lft(self) -> int:

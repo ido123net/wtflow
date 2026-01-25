@@ -1,18 +1,11 @@
 from __future__ import annotations
 
-import json
 import logging
-from dataclasses import asdict
-from typing import Any
 
 from wtflow.config import Config
 from wtflow.infra.workflow import Workflow, WorkflowExecutor
 
 logger = logging.getLogger(__name__)
-
-
-def _dict_factory(iterable: list[tuple[str, object]]) -> dict[str, Any]:
-    return {k: v for k, v in iterable if not k.startswith("_") and k != "id" and v}
 
 
 class Engine:
@@ -24,7 +17,7 @@ class Engine:
 
     def run_workflow(self, workflow: Workflow, *, dry_run: bool = False) -> int:
         if dry_run:
-            print(json.dumps(asdict(workflow, dict_factory=_dict_factory), indent=2))
+            print(workflow.model_dump_json(indent=2, exclude_defaults=True))
             return 0
 
         self.db_service.add_workflow(workflow)

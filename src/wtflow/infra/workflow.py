@@ -4,8 +4,9 @@ import itertools
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
-from typing import IO, TYPE_CHECKING
+from typing import IO, TYPE_CHECKING, Any
+
+from pydantic import BaseModel
 
 from wtflow.infra.executors import Executor, Result
 from wtflow.infra.nodes import Node
@@ -19,12 +20,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class Workflow:
+class Workflow(BaseModel):
     name: str
     root: Node
 
-    _id: int | None = field(default=None, repr=False, init=False)
+    _id: int | None = None
 
     @property
     def id(self) -> int | str:
@@ -34,7 +34,7 @@ class Workflow:
     def id(self, value: int) -> None:
         self._id = value
 
-    def __post_init__(self) -> None:
+    def model_post_init(self, context: Any, /) -> None:
         counter = itertools.count(1)
         self.root.set_lft_rgt(counter)
 
