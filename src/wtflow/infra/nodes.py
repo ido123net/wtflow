@@ -5,14 +5,13 @@ from typing import Iterator
 
 from pydantic import BaseModel
 
-from wtflow.infra.executables import Command
-
 logger = logging.getLogger(__name__)
 
 
 class Node(BaseModel):
     name: str
-    executable: Command | None = None
+    command: str | None = None
+    timeout: float | None = None
     parallel: bool = False
     children: list[Node] = []
 

@@ -4,7 +4,6 @@ import pytest
 
 from wtflow.config import NO_CONFIG, Config, LocalStorageConfig, RunConfig, Sqlite3Config
 from wtflow.infra.engine import Engine
-from wtflow.infra.executables import Command
 from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Workflow
 
@@ -39,13 +38,13 @@ def test_run():
         root=Node(
             name="Root Node",
             children=[
-                Node(name="Node 1", executable=Command(cmd='echo "Hello 1"')),
+                Node(name="Node 1", command='echo "Hello 1"'),
                 Node(
                     name="Node 2",
                     parallel=True,
                     children=[
-                        Node(name="Node 2.1", executable=Command(cmd='echo "World 2.1"')),
-                        Node(name="Node 2.2", executable=Command(cmd='echo "World 2.2"')),
+                        Node(name="Node 2.1", command='echo "World 2.1"'),
+                        Node(name="Node 2.2", command='echo "World 2.2"'),
                     ],
                 ),
             ],
@@ -60,7 +59,7 @@ def test_fail_run():
         name="test fail run",
         root=Node(
             name="fail node",
-            executable=Command(cmd="command-not-exist"),
+            command="command-not-exist",
         ),
     )
     engine = Engine()
@@ -76,16 +75,16 @@ def test_stop_on_failure():
         root=Node(
             name="Root Node",
             children=[
-                Node(name="Node 1", executable=Command(cmd='echo "Hello 1"')),
+                Node(name="Node 1", command='echo "Hello 1"'),
                 Node(
                     name="Node 2",
                     parallel=True,
                     children=[
-                        Node(name="Node 2.1", executable=Command(cmd='echo "World 2.1"')),
-                        Node(name="Node 2.2", executable=Command(cmd="command-not-exist")),
+                        Node(name="Node 2.1", command='echo "World 2.1"'),
+                        Node(name="Node 2.2", command="command-not-exist"),
                     ],
                 ),
-                Node(name="Node 3", executable=Command(cmd='echo "Hello 3"')),
+                Node(name="Node 3", command='echo "Hello 3"'),
             ],
         ),
     )
@@ -102,8 +101,8 @@ def test_continue_on_failure():
         root=Node(
             name="Root Node",
             children=[
-                Node(name="Node 1", executable=Command(cmd="command-not-exist")),
-                Node(name="Node 2", executable=Command(cmd="echo run anyway")),
+                Node(name="Node 1", command="command-not-exist"),
+                Node(name="Node 2", command="echo run anyway"),
             ],
         ),
     )
@@ -121,7 +120,7 @@ def test_with_db_config(db_config):
         root=Node(
             name="Root Node",
             children=[
-                Node(name="Node 1", executable=Command(cmd="echo 'Hello'")),
+                Node(name="Node 1", command="echo 'Hello'"),
             ],
         ),
     )
@@ -136,7 +135,7 @@ def test_with_storage_config(local_storage_config, data_dir):
         root=Node(
             name="Root Node",
             children=[
-                Node(name="Node 1", executable=Command(cmd="echo 'Hello'")),
+                Node(name="Node 1", command="echo 'Hello'"),
             ],
         ),
     )
@@ -154,7 +153,7 @@ def test_with_db_and_storage_config(db_config, local_storage_config):
         root=Node(
             name="Root Node",
             children=[
-                Node(name="Node 1", executable=Command(cmd="echo 'Hello'")),
+                Node(name="Node 1", command="echo 'Hello'"),
             ],
         ),
     )
@@ -168,7 +167,7 @@ def test_dry_run(capsys):
         root=Node(
             name="Root Node",
             children=[
-                Node(name="Node 1", executable=Command(cmd="echo 'Hello'")),
+                Node(name="Node 1", command="echo 'Hello'"),
             ],
         ),
     )
@@ -183,9 +182,7 @@ def test_dry_run(capsys):
     "children": [
       {
         "name": "Node 1",
-        "executable": {
-          "cmd": "echo 'Hello'"
-        }
+        "command": "echo 'Hello'"
       }
     ]
   }

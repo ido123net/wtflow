@@ -15,7 +15,7 @@ import wtflow
 def workflow_1():
     return wtflow.Node(
         name="Root Node",
-        executable=wtflow.Command(cmd="echo 'Hello, World!'"),
+        command="echo 'Hello, World!'",
     )
 
 @wtflow.wf
@@ -23,7 +23,7 @@ def hello_world2():
     return [
         wtflow.Node(
             name=f"hello-world-{x}",
-            executable=wtflow.Command(cmd="echo hello world"),
+            command="echo hello world",
         )
         for x in ["1", "2", "3"]
     ]
@@ -95,7 +95,7 @@ def run_pytest():
             children=[
                 wtflow.Node(
                     name=f"pytest-{ver}",
-                    executable=wtflow.Command(cmd=f"uv run -p{ver} pytest --cov"),
+                    command=f"uv run -p{ver} pytest --cov",
                 )
                 for ver in ("3.10", "3.11", "3.12", "3.13", "3.14")
             ],
