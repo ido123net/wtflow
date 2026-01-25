@@ -8,8 +8,8 @@ def test_override_workflow():
 
         @wtflow.wf(name="test_wf")
         def _():
-            return wtflow.Node("")
+            return wtflow.Node(name="")
 
         @wtflow.wf(name="test_wf")
         def _():
-            return wtflow.Node("")
+            return wtflow.Node(name="")

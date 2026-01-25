@@ -18,12 +18,12 @@ def wf(
             _add_workflow(res)
         elif isinstance(res, wtflow.Node):
             wf_name = name or func.__name__.replace("_", "-")
-            wf = wtflow.Workflow(wf_name, res)
+            wf = wtflow.Workflow(name=wf_name, root=res)
             _add_workflow(wf)
         else:
             wf_name = name or func.__name__.replace("_", "-")
             root_node = wtflow.Node(name=wf_name, children=list(res))
-            wf = wtflow.Workflow(wf_name, root_node)
+            wf = wtflow.Workflow(name=wf_name, root=root_node)
             _add_workflow(wf)
 
     def _add_workflow(wf: wtflow.Workflow) -> None:

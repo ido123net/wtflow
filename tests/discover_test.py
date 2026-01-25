@@ -15,12 +15,18 @@ import wtflow
 def workflow_1():
     return wtflow.Node(
         name="Root Node",
-        executable=wtflow.Command("echo 'Hello, World!'"),
+        executable=wtflow.Command(cmd="echo 'Hello, World!'"),
     )
 
 @wtflow.wf
 def hello_world2():
-    return [wtflow.Node(f"hello-world-{x}", wtflow.Command("echo hello world")) for x in ["1", "2", "3"]]
+    return [
+        wtflow.Node(
+            name=f"hello-world-{x}",
+            executable=wtflow.Command(cmd="echo hello world"),
+        )
+        for x in ["1", "2", "3"]
+    ]
 """)
     return p
 
@@ -35,11 +41,11 @@ import wtflow
 
 @wtflow.wf(name="test_wf")
 def _():
-    return wtflow.Node("")
+    return wtflow.Node(name="")
 
 @wtflow.wf(name="test_wf")
 def _():
-    return wtflow.Node("")
+    return wtflow.Node(name="")
 """)
     return p
 
@@ -99,6 +105,6 @@ def run_pytest():
     return p
 
 
-def test_discover_workflwo(wtfile_workflow):
+def test_discover_workflow(wtfile_workflow):
     root_nodes_dict = discover_workflows(wtfile_workflow)
     assert "pytest" in root_nodes_dict

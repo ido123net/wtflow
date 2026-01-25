@@ -5,6 +5,9 @@ readme = "README.md"
 authors = [{ name = "Ido Frenkel", email = "ido123net@gmail.com" }]
 requires-python = ">=3.10"
 version = "0.2.0"
+dependencies = [
+    "pydantic>=2.10",
+]
 
 [project.scripts]
 wtflow = "wtflow.cli.main:main"

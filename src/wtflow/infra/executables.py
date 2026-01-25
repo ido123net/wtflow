@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field
 
 
-@dataclass(frozen=True)
-class Command:
-    timeout: float | None = field(default=None, kw_only=True)
+class Command(BaseModel):
+    timeout: float | None = Field(default=None, kw_only=True)
     cmd: str
