@@ -65,7 +65,7 @@ class WorkflowExecutor:
         stdout = os.fdopen(stdout_fd, "rb")
         stderr = os.fdopen(stderr_fd, "rb")
         with ThreadPoolExecutor(max_workers=3) as pool:
-            _retcode_f = pool.submit(executor._wait, node.timeout)
+            _retcode_f = pool.submit(executor._wait)
             _stdout_f = pool.submit(self._read_stream, stdout, node, "stdout")
             _stderr_f = pool.submit(self._read_stream, stderr, node, "stderr")
 
@@ -88,7 +88,7 @@ class WorkflowExecutor:
         logger.debug(f"Executing node {node.name!r}")
         self.db_service.start_execution(self.workflow, node)
         executor = Executor(node.command, node.timeout)
-        executor._execute(node.command, stdout_tx, stderr_tx)
+        executor._execute(stdout_tx, stderr_tx)
         os.close(stdout_tx)
         os.close(stderr_tx)
         result = self._wait_node(executor, node, stdout_rx, stderr_rx)
