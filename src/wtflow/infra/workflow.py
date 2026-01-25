@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+import itertools
 import logging
 import os
-from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import IO, TYPE_CHECKING
-from uuid import uuid4
 
 from wtflow.infra.executors import Executor, Result
 from wtflow.infra.nodes import Node
@@ -20,12 +19,24 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
+@dataclass
 class Workflow:
     name: str
     root: Node
 
-    id: str = field(default_factory=lambda: uuid4().hex, repr=False, init=False)
+    _id: int | None = field(default=None, repr=False, init=False)
+
+    @property
+    def id(self) -> int | str:
+        return self._id if self._id else self.name
+
+    @id.setter
+    def id(self, value: int) -> None:
+        self._id = value
+
+    def __post_init__(self) -> None:
+        counter = itertools.count(1)
+        self.root.set_lft_rgt(counter)
 
 
 class WorkflowExecutor:
@@ -40,7 +51,7 @@ class WorkflowExecutor:
         self.storage_service = storage_service
         self.db_service = db_service
         self.run_config = run_config
-        self._node_result: dict[Node, Result | None] = defaultdict(lambda: None)
+        self._node_result: dict[int, Result | None] = {}
 
     def _read_stream(self, stream: IO[bytes], node: Node, stream_name: str) -> bytes:
         res = b""
@@ -82,7 +93,7 @@ class WorkflowExecutor:
         os.close(stdout_tx)
         os.close(stderr_tx)
         result = self._wait_node(executor, node, stdout_rx, stderr_rx)
-        self._node_result[node] = result
+        self._node_result[id(node)] = result
         self.db_service.end_execution(self.workflow, node, result)
 
         fail = result.retcode != 0
@@ -107,4 +118,4 @@ class WorkflowExecutor:
             return failing_nodes
 
     def node_result(self, node: Node) -> Result | None:
-        return self._node_result[node]
+        return self._node_result.get(id(node))

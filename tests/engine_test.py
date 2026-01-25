@@ -129,7 +129,7 @@ def test_with_db_config(db_config):
     assert engine.run_workflow(wf) == 0
 
 
-def test_with_storage_config(local_storage_config):
+def test_with_storage_config(local_storage_config, data_dir):
     config = Config(storage=local_storage_config)
     wf = Workflow(
         name="test no db",
@@ -142,6 +142,9 @@ def test_with_storage_config(local_storage_config):
     )
     engine = Engine(config=config)
     assert engine.run_workflow(wf) == 0
+    log_path = data_dir / "test no db" / "Node 1" / "stdout.txt"
+    assert log_path.exists()
+    assert log_path.read_text() == "Hello\n"
 
 
 def test_with_db_and_storage_config(db_config, local_storage_config):

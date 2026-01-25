@@ -14,7 +14,7 @@ class LocalStorageService(StorageServiceInterface):
         node: wtflow.Node,
         name: str,
     ) -> pathlib.Path:
-        return self.base_path / workflow.id / node.id / f"{name}.txt"
+        return self.base_path / str(workflow.id) / str(node.id) / f"{name}.txt"
 
     def append_to_artifact(
         self,
