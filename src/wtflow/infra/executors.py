@@ -20,22 +20,22 @@ class Executor:
         self.stderr: IO[bytes] | None = None
 
     def execute(self) -> Result:
-        self._execute(self.command)
-        retcode = self._wait(self.timeout)
+        self._execute()
+        retcode = self._wait()
         return Result(retcode, b"", b"")
 
-    def _execute(self, command: str, stdout: int | None = None, stderr: int | None = None) -> None:
+    def _execute(self, stdout: int | None = None, stderr: int | None = None) -> None:
         self._process = subprocess.Popen(
-            command,
+            self.command,
             shell=True,
             stdout=stdout,
             stderr=stderr,
             start_new_session=True,
         )
 
-    def _wait(self, timeout: float | None) -> int | None:
+    def _wait(self) -> int | None:
         try:
-            return self._process.wait(timeout)
+            return self._process.wait(self.timeout)
         except (subprocess.TimeoutExpired, KeyboardInterrupt):
             os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
             return self._process.wait()
