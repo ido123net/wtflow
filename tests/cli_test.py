@@ -95,15 +95,17 @@ def test_no_workflow_list(capsys):
     assert out == "No workflows found.\n"
 
 
-def test_no_workflow_run(capsys):
-    res = _cmd_run({})
+@pytest.mark.asyncio
+async def test_no_workflow_run(capsys):
+    res = await _cmd_run({})
     assert res == 1
     _, err = capsys.readouterr()
     assert err == "No workflows found.\n"
 
 
-def test_workflow_not_found(capsys):
-    res = _cmd_run({"workflow-1": None}, "workflow-2")  # type: ignore
+@pytest.mark.asyncio
+async def test_workflow_not_found(capsys):
+    res = await _cmd_run({"workflow-1": None}, "workflow-2")  # type: ignore
     assert res == 1
     _, err = capsys.readouterr()
     assert err == "Error: Workflow 'workflow-2' not found.\n"

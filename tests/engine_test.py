@@ -32,7 +32,8 @@ def local_storage_config(data_dir):
     return LocalStorageConfig(base_path=data_dir)
 
 
-def test_run():
+@pytest.mark.asyncio
+async def test_run():
     wf = Workflow(
         name="test run",
         root=Node(
@@ -51,10 +52,11 @@ def test_run():
         ),
     )
     engine = Engine()
-    engine.run_workflow(wf)
+    await engine.run_workflow(wf)
 
 
-def test_fail_run(capfd):
+@pytest.mark.asyncio
+async def test_fail_run(capfd):
     wf = Workflow(
         name="test fail run",
         root=Node(
@@ -63,14 +65,15 @@ def test_fail_run(capfd):
         ),
     )
     engine = Engine()
-    assert engine.run_workflow(wf) == 1
+    assert await engine.run_workflow(wf) == 1
     root_node_result = engine.get_workflow_executor(wf).node_result(wf.root)
     assert root_node_result != 0
     _, err = capfd.readouterr()
     assert "not found" in err
 
 
-def test_stop_on_failure():
+@pytest.mark.asyncio
+async def test_stop_on_failure():
     wf = Workflow(
         name="test stop on failure",
         root=Node(
@@ -90,12 +93,13 @@ def test_stop_on_failure():
         ),
     )
     engine = Engine(config=Config())
-    assert engine.run_workflow(wf) == 1
+    assert await engine.run_workflow(wf) == 1
     node_result = engine.get_workflow_executor(wf).node_result(wf.root.children[2])
     assert node_result is None
 
 
-def test_with_db_config(db_config):
+@pytest.mark.asyncio
+async def test_with_db_config(db_config):
     config = Config(database=db_config)
     wf = Workflow(
         name="test with db config",
@@ -107,10 +111,11 @@ def test_with_db_config(db_config):
         ),
     )
     engine = Engine(config=config)
-    assert engine.run_workflow(wf) == 0
+    assert await engine.run_workflow(wf) == 0
 
 
-def test_with_storage_config(local_storage_config, data_dir):
+@pytest.mark.asyncio
+async def test_with_storage_config(local_storage_config, data_dir):
     config = Config(storage=local_storage_config)
     wf = Workflow(
         name="test no db",
@@ -122,13 +127,14 @@ def test_with_storage_config(local_storage_config, data_dir):
         ),
     )
     engine = Engine(config=config)
-    assert engine.run_workflow(wf) == 0
+    assert await engine.run_workflow(wf) == 0
     log_path = data_dir / "test no db" / "Node 1" / "stdout.txt"
     assert log_path.exists()
     assert log_path.read_text() == "Hello\n"
 
 
-def test_with_db_and_storage_config(db_config, local_storage_config):
+@pytest.mark.asyncio
+async def test_with_db_and_storage_config(db_config, local_storage_config):
     config = Config(database=db_config, storage=local_storage_config)
     wf = Workflow(
         name="test with db",
@@ -140,4 +146,4 @@ def test_with_db_and_storage_config(db_config, local_storage_config):
         ),
     )
     engine = Engine(config=config)
-    assert engine.run_workflow(wf) == 0
+    assert await engine.run_workflow(wf) == 0

@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import json
 import os
 import sys
@@ -67,7 +68,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "list":
         return _cmd_list(workflow_dict)
     elif args.command == "run":
-        return _cmd_run(workflow_dict, args.workflow, config, args.dry_run)
+        return asyncio.run(_cmd_run(workflow_dict, args.workflow, config, args.dry_run))
     else:
         raise NotImplementedError
 
@@ -84,7 +85,7 @@ def _cmd_list(workflow_dict: dict[str, Workflow]) -> int:
     return 0
 
 
-def _cmd_run(
+async def _cmd_run(
     workflow_dict: dict[str, Workflow],
     workflow_name: str | None = None,
     config: Config | None = None,
@@ -110,7 +111,7 @@ def _cmd_run(
 
     for wf in wfs:
         engine = Engine(config=config)
-        res += engine.run_workflow(workflow=wf)
+        res += await engine.run_workflow(workflow=wf)
 
     return min(res, 1)
 
