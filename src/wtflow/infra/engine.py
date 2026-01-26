@@ -20,7 +20,6 @@ class Engine:
             print(workflow.model_dump_json(indent=2, exclude_defaults=True))
             return 0
 
-        self.db_service.add_workflow(workflow)
         workflow_executor = WorkflowExecutor(workflow, self.storage_service, self.db_service, self.config.run)
         self._workflow_execution[id(workflow)] = workflow_executor
 
