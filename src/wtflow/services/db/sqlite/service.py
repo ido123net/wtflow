@@ -38,8 +38,8 @@ class Sqlite3DBService(DBServiceInterface):
     def add_workflow(self, workflow: wtflow.Workflow) -> None:
         def add_node(cursor: sqlite3.Cursor, node: wtflow.Node) -> None:
             cursor.execute(
-                "INSERT INTO nodes (name, lft, rgt, workflow_id) VALUES (?, ?, ?, ?)",
-                (node.name, node.lft, node.rgt, workflow.id),
+                "INSERT INTO nodes (name, command, lft, rgt, workflow_id) VALUES (?, ?, ?, ?, ?)",
+                (node.name, node.command, node.lft, node.rgt, workflow.id),
             )
             row_id = cursor.lastrowid
             assert row_id
