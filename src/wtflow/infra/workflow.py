@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import itertools
 import logging
-import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import IO, TYPE_CHECKING, Any
 
@@ -58,13 +57,13 @@ class WorkflowExecutor:
         stream.close()
         return res
 
-    def _wait_node(self, executor: Executor, node: Node, stdout_fd: int, stderr_fd: int) -> Result:
-        stdout = os.fdopen(stdout_fd, "rb")
-        stderr = os.fdopen(stderr_fd, "rb")
+    def _wait_node(self, executor: Executor, node: Node) -> Result:
+        assert executor.process.stdout
+        assert executor.process.stderr
         with ThreadPoolExecutor(max_workers=3) as pool:
             _retcode_f = pool.submit(executor._wait)
-            _stdout_f = pool.submit(self._read_stream, stdout, node, "stdout")
-            _stderr_f = pool.submit(self._read_stream, stderr, node, "stderr")
+            _stdout_f = pool.submit(self._read_stream, executor.process.stdout, node, "stdout")
+            _stderr_f = pool.submit(self._read_stream, executor.process.stderr, node, "stderr")
 
         return Result(
             retcode=_retcode_f.result(),
@@ -80,16 +79,11 @@ class WorkflowExecutor:
         if not node.command:
             return self.execute_children(node.children, node.parallel)
 
-        stdout_rx, stdout_tx = os.pipe()
-        stderr_rx, stderr_tx = os.pipe()
-
         logger.debug(f"Executing node {node.name!r}")
         self.db_service.start_execution(self.workflow, node)
         executor = Executor(node.command, node.timeout)
-        executor._execute(stdout_tx, stderr_tx)
-        os.close(stdout_tx)
-        os.close(stderr_tx)
-        result = self._wait_node(executor, node, stdout_rx, stderr_rx)
+        executor._execute()
+        result = self._wait_node(executor, node)
         self._node_result[id(node)] = result
         self.db_service.end_execution(self.workflow, node, result)
 
