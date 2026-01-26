@@ -5,7 +5,8 @@ import os
 import pathlib
 import sys
 from configparser import ConfigParser, SectionProxy
-from dataclasses import dataclass, field
+
+from pydantic import BaseModel
 
 import wtflow
 from wtflow.services.db.service import DBServiceInterface, NoDBService
@@ -22,8 +23,7 @@ logger = logging.getLogger(__name__)
 NO_CONFIG = "WTFLOW_NO_CONFIG"
 
 
-@dataclass
-class DatabaseConfig:
+class DatabaseConfig(BaseModel):
     @classmethod
     def from_db_section(cls, section: SectionProxy) -> Self:
         raise NotImplementedError
@@ -41,7 +41,6 @@ class DatabaseConfig:
         return factory.from_db_section(database_section)
 
 
-@dataclass
 class Sqlite3Config(DatabaseConfig):
     database_path: str
 
@@ -57,8 +56,7 @@ class Sqlite3Config(DatabaseConfig):
         return Sqlite3DBService(self.database_path)
 
 
-@dataclass
-class StorageConfig:
+class StorageConfig(BaseModel):
     @classmethod
     def from_storage_section(cls, section: SectionProxy) -> Self:
         raise NotImplementedError
@@ -76,16 +74,14 @@ class StorageConfig:
         return factory.from_storage_section(storage_section)
 
 
-@dataclass
 class LocalStorageConfig(StorageConfig):
-    def __init__(self, base_path: str = ".wtflow_logs") -> None:
-        self.base_path = base_path
+    base_path: pathlib.Path
 
     @classmethod
     def from_storage_section(cls, section: SectionProxy) -> LocalStorageConfig:
         base_path = section.get("base_path", fallback=".wtflow_logs")
         assert base_path is not None
-        return cls(base_path=base_path)
+        return cls(base_path=pathlib.Path(base_path))
 
     def create_storage_service(self) -> StorageServiceInterface:
         from wtflow.services.storage.local.service import LocalStorageService
@@ -93,20 +89,18 @@ class LocalStorageConfig(StorageConfig):
         return LocalStorageService(base_path=self.base_path)
 
 
-@dataclass
-class RunConfig:
+class RunConfig(BaseModel):
     ignore_failure: bool = False
 
     @classmethod
     def from_config_parser(cls, config: ConfigParser) -> RunConfig:
-        return cls(ignore_failure=config.getboolean("run", "ignore_failure", fallback=cls.ignore_failure))
+        return cls(ignore_failure=config.getboolean("run", "ignore_failure", fallback=False))
 
 
-@dataclass
-class Config:
-    storage: StorageConfig = field(default_factory=StorageConfig)
-    database: DatabaseConfig = field(default_factory=DatabaseConfig)
-    run: RunConfig = field(default_factory=RunConfig)
+class Config(BaseModel):
+    storage: StorageConfig = StorageConfig()
+    database: DatabaseConfig = DatabaseConfig()
+    run: RunConfig = RunConfig()
 
     @classmethod
     def from_ini(cls, ini_path: str | pathlib.Path | None = None) -> Config:
