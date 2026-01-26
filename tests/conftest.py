@@ -19,9 +19,6 @@ def ini_config(tmp_path):
                 [storage]
                 factory = wtflow.config.LocalStorageConfig
                 base_path = {tmp_path}/.wtflow_logs
-
-                [run]
-                ignore_failure = true
                 """
             )
         )
