@@ -37,14 +37,14 @@ Found 2 workflow(s):
 
 
 def test_list(wtfile, capsys):
-    main(["--file", str(wtfile), "list"])
+    main(["list", str(wtfile)])
     out, _ = capsys.readouterr()
     assert out == WTFLIE_OUT
 
 
 def test_run_all(wtfile, capsys, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    main(["--file", str(wtfile), "run"])
+    main(["run", str(wtfile)])
     out, _ = capsys.readouterr()
     expected_out = """\
 Hello, World!
@@ -55,26 +55,26 @@ Workflow 2
 
 def test_run_workflow(wtfile, capsys, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    main(["--file", str(wtfile), "run", "--workflow", "hello-world"])
+    main(["run", "--workflow", "hello-world", str(wtfile)])
     out, _ = capsys.readouterr()
     assert out == "Hello, World!\n"
 
 
 def test_with_config(wtfile, ini_config, capsys):
-    main(["--config", str(ini_config), "--file", str(wtfile), "run", "--workflow", "hello-world"])
+    main(["--config", str(ini_config), "run", "--workflow", "hello-world", str(wtfile)])
     out, _ = capsys.readouterr()
     assert out == ""
 
 
 def test_ignore_config(wtfile, ini_config, tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
-    main(["--file", str(wtfile), "--no-config", "run", "--workflow", "hello-world"])
+    main(["--no-config", "run", "--workflow", "hello-world", str(wtfile)])
     out, _ = capsys.readouterr()
     assert out == "Hello, World!\n"
 
 
 def test_file_not_exist(capsys):
-    res = main(["--file", "/does/not/exist.py", "list"])
+    res = main(["list", "/does/not/exist.py"])
     assert res == 1
     _, err = capsys.readouterr()
     assert err == "Error: The specified workflows path '/does/not/exist.py' does not exist.\n"
@@ -107,3 +107,28 @@ def test_workflow_not_found(capsys):
     assert res == 1
     _, err = capsys.readouterr()
     assert err == "Error: Workflow 'workflow-2' not found.\n"
+
+
+def test_dry_run(wtfile, capsys, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    main(["run", str(wtfile), "--dry-run"])
+    out, _ = capsys.readouterr()
+    expected_out = """\
+[
+  {
+    "name": "hello-world",
+    "root": {
+      "name": "Root Node",
+      "command": "echo 'Hello, World!'"
+    }
+  },
+  {
+    "name": "workflow-2",
+    "root": {
+      "name": "workflow-2",
+      "command": "echo 'Workflow 2'"
+    }
+  }
+]
+"""
+    assert out == expected_out

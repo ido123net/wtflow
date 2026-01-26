@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -26,20 +27,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Ignore config file",
     )
-    parser.add_argument(
-        "--file",
-        "-f",
-        help="Path to workflows directory (default: 'wtfile.py')",
-        default="wtfile.py",
-        type=Path,
-        dest="workflows_path",
-    )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to execute", required=True)
 
-    subparsers.add_parser("list", help="List available workflows")
-
+    list_parser = subparsers.add_parser("list", help="List available workflows")
     run_parser = subparsers.add_parser("run", help="Run a workflow")
+
+    for subparser in [list_parser, run_parser]:
+        subparser.add_argument(
+            "workflows_path",
+            help="Path to workflows directory (default: 'wtfile.py')",
+            default="wtfile.py",
+            type=Path,
+            nargs="?",
+        )
+
     run_parser.add_argument("--workflow", help="Name of the workflow to run", default=None)
     run_parser.add_argument(
         "--dry-run",
@@ -60,10 +62,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Error: The specified workflows path '{args.workflows_path}' does not exist.", file=sys.stderr)
         return 1
 
-    if wf_path.suffix == ".py":
-        workflow_dict = discover_workflows(args.workflows_path)
-    else:
-        raise NotImplementedError
+    workflow_dict = discover_workflows(args.workflows_path)
 
     if args.command == "list":
         return _cmd_list(workflow_dict)
@@ -105,9 +104,13 @@ def _cmd_run(
     else:
         wfs = [workflow_dict[workflow_name]]
 
+    if dry_run:
+        print(json.dumps([workflow.model_dump(exclude_defaults=True) for workflow in wfs], indent=2))
+        return 0
+
     for wf in wfs:
         engine = Engine(config=config)
-        res += engine.run_workflow(workflow=wf, dry_run=dry_run)
+        res += engine.run_workflow(workflow=wf)
 
     return min(res, 1)
 

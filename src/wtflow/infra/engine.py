@@ -15,11 +15,7 @@ class Engine:
         self.db_service = self.config.database.create_db_service()
         self._workflow_execution: dict[int, WorkflowExecutor] = {}
 
-    def run_workflow(self, workflow: Workflow, *, dry_run: bool = False) -> int:
-        if dry_run:
-            print(workflow.model_dump_json(indent=2, exclude_defaults=True))
-            return 0
-
+    def run_workflow(self, workflow: Workflow) -> int:
         workflow_executor = WorkflowExecutor(workflow, self.storage_service, self.db_service)
         self._workflow_execution[id(workflow)] = workflow_executor
 
