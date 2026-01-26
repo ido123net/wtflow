@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Generator
 
 import wtflow
-from wtflow.infra.executors import Result
 from wtflow.services.db.service import DBServiceInterface
 
 
@@ -76,15 +75,13 @@ class Sqlite3DBService(DBServiceInterface):
 
             conn.commit()
 
-    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: Result | None = None) -> None:
+    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: int | None = None) -> None:
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
-            retcode = result.retcode if result else None
-
             cursor.execute(
-                "UPDATE executions SET end_at = ?, retcode = ?  WHERE node_id = ?",
-                (datetime.now(timezone.utc), retcode, node.id),
+                "UPDATE executions SET end_at = ?, result = ?  WHERE node_id = ?",
+                (datetime.now(timezone.utc), result, node.id),
             )
 
             conn.commit()

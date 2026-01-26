@@ -3,11 +3,11 @@ from __future__ import annotations
 import itertools
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from typing import IO, TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
-from wtflow.infra.executors import Executor, Result
+from wtflow.infra.executors import Executor
 from wtflow.infra.nodes import Node
 
 if TYPE_CHECKING:
@@ -47,29 +47,7 @@ class WorkflowExecutor:
         self.workflow = workflow
         self.storage_service = storage_service
         self.db_service = db_service
-        self._node_result: dict[int, Result | None] = {}
-
-    def _read_stream(self, stream: IO[bytes], node: Node, stream_name: str) -> bytes:
-        res = b""
-        for line in iter(stream.readline, b""):
-            self.storage_service.append_to_artifact(self.workflow, node, stream_name, line)
-            res += line
-        stream.close()
-        return res
-
-    def _wait_node(self, executor: Executor, node: Node) -> Result:
-        assert executor.process.stdout
-        assert executor.process.stderr
-        with ThreadPoolExecutor(max_workers=3) as pool:
-            _retcode_f = pool.submit(executor._wait)
-            _stdout_f = pool.submit(self._read_stream, executor.process.stdout, node, "stdout")
-            _stderr_f = pool.submit(self._read_stream, executor.process.stderr, node, "stderr")
-
-        return Result(
-            retcode=_retcode_f.result(),
-            stdout=_stdout_f.result(),
-            stderr=_stderr_f.result(),
-        )
+        self._node_result: dict[int, int | None] = {}
 
     def run(self) -> int:
         self.db_service.add_workflow(self.workflow)
@@ -81,13 +59,16 @@ class WorkflowExecutor:
 
         logger.debug(f"Executing node {node.name!r}")
         self.db_service.start_execution(self.workflow, node)
-        executor = Executor(node.command, node.timeout)
-        executor._execute()
-        result = self._wait_node(executor, node)
+        with (
+            self.storage_service.open_artifact(self.workflow, node, "stdout") as stdout,
+            self.storage_service.open_artifact(self.workflow, node, "stderr") as stderr,
+        ):
+            executor = Executor(node.command, node.timeout, stdout, stderr)
+            result = executor.execute()
         self._node_result[id(node)] = result
         self.db_service.end_execution(self.workflow, node, result)
 
-        fail = result.retcode != 0
+        fail = result != 0
 
         if fail:
             return 1
@@ -106,5 +87,5 @@ class WorkflowExecutor:
                     return 1
             return 0
 
-    def node_result(self, node: Node) -> Result | None:
+    def node_result(self, node: Node) -> int | None:
         return self._node_result.get(id(node))

@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 import wtflow
-from wtflow.infra.executors import Result
 
 
 class DBServiceInterface(ABC):
@@ -16,7 +15,7 @@ class DBServiceInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: Result | None = None) -> None:
+    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: int | None = None) -> None:
         raise NotImplementedError
 
 
@@ -27,5 +26,5 @@ class NoDBService(DBServiceInterface):
     def start_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
         pass
 
-    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: Result | None = None) -> None:
+    def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: int | None = None) -> None:
         pass

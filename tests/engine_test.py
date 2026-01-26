@@ -54,7 +54,7 @@ def test_run():
     engine.run_workflow(wf)
 
 
-def test_fail_run():
+def test_fail_run(capfd):
     wf = Workflow(
         name="test fail run",
         root=Node(
@@ -65,8 +65,9 @@ def test_fail_run():
     engine = Engine()
     assert engine.run_workflow(wf) == 1
     root_node_result = engine.get_workflow_executor(wf).node_result(wf.root)
-    assert root_node_result
-    assert b"not found" in root_node_result.stderr
+    assert root_node_result != 0
+    _, err = capfd.readouterr()
+    assert "not found" in err
 
 
 def test_stop_on_failure():

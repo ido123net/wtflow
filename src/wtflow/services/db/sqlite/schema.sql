@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS executions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     start_at TIMESTAMP NULL,
     end_at TIMESTAMP NULL,
-    retcode INTEGER NULL,
+    result INTEGER NULL,
     node_id TEXT NOT NULL,
     FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
 );

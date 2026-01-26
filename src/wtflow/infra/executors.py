@@ -3,32 +3,31 @@ from __future__ import annotations
 import os
 import signal
 import subprocess
-from typing import NamedTuple
-
-
-class Result(NamedTuple):
-    retcode: int | None
-    stdout: bytes
-    stderr: bytes
 
 
 class Executor:
-    def __init__(self, command: str, timeout: float | None) -> None:
+    def __init__(
+        self,
+        command: str,
+        timeout: float | None,
+        stdout: int | None = None,
+        stderr: int | None = None,
+    ) -> None:
         self.command = command
         self.timeout = timeout
+        self.stdout = stdout
+        self.stderr = stderr
 
-    def execute(self) -> Result:
-        self._execute(pipe=False)
-        retcode = self._wait()
-        return Result(retcode, b"", b"")
+    def execute(self) -> int | None:
+        self._execute()
+        return self._wait()
 
-    def _execute(self, *, pipe: bool = True) -> None:
-        pipe_output = subprocess.PIPE if pipe else None
+    def _execute(self) -> None:
         self.process = subprocess.Popen(
             self.command,
             shell=True,
-            stdout=pipe_output,
-            stderr=pipe_output,
+            stdout=self.stdout,
+            stderr=self.stderr,
             start_new_session=True,
         )
 

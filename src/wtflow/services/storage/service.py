@@ -1,34 +1,32 @@
 from __future__ import annotations
 
-import sys
 from abc import ABC, abstractmethod
+from contextlib import AbstractContextManager, nullcontext
 
 import wtflow
 
 
 class StorageServiceInterface(ABC):
     @abstractmethod
-    def append_to_artifact(
+    def open_artifact(
         self,
         workflow: wtflow.Workflow,
         node: wtflow.Node,
         name: str,
-        data: bytes,
-    ) -> None:
+        file_type: str = "txt",
+    ) -> AbstractContextManager[int | None]:
         raise NotImplementedError
 
 
 class NoStorageService(StorageServiceInterface):
-    def append_to_artifact(
+    def open_artifact(
         self,
         workflow: wtflow.Workflow,
         node: wtflow.Node,
         name: str,
-        data: bytes,
-    ) -> None:
-        if name == "stdout":
-            sys.stdout.buffer.write(data)
-        elif name == "stderr":
-            sys.stderr.buffer.write(data)
+        file_type: str = "txt",
+    ) -> nullcontext[None]:
+        if name in ("stdout", "stderr"):
+            return nullcontext()
         else:
             raise NotImplementedError(f"Artifact {name} is not supported in {self.__class__.__name__}")

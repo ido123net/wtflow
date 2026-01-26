@@ -42,10 +42,10 @@ def test_list(wtfile, capsys):
     assert out == WTFLIE_OUT
 
 
-def test_run_all(wtfile, capsys, tmp_path, monkeypatch):
+def test_run_all(wtfile, capfd, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     main(["run", str(wtfile)])
-    out, _ = capsys.readouterr()
+    out, _ = capfd.readouterr()
     expected_out = """\
 Hello, World!
 Workflow 2
@@ -53,10 +53,10 @@ Workflow 2
     assert out == expected_out
 
 
-def test_run_workflow(wtfile, capsys, tmp_path, monkeypatch):
+def test_run_workflow(wtfile, capfd, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     main(["run", "--workflow", "hello-world", str(wtfile)])
-    out, _ = capsys.readouterr()
+    out, _ = capfd.readouterr()
     assert out == "Hello, World!\n"
 
 
@@ -66,10 +66,10 @@ def test_with_config(wtfile, ini_config, capsys):
     assert out == ""
 
 
-def test_ignore_config(wtfile, ini_config, tmp_path, monkeypatch, capsys):
+def test_ignore_config(wtfile, ini_config, tmp_path, monkeypatch, capfd):
     monkeypatch.chdir(tmp_path)
     main(["--no-config", "run", "--workflow", "hello-world", str(wtfile)])
-    out, _ = capsys.readouterr()
+    out, _ = capfd.readouterr()
     assert out == "Hello, World!\n"
 
 
