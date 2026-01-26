@@ -76,6 +76,7 @@ class WorkflowExecutor:
         )
 
     def run(self) -> int:
+        self.db_service.add_workflow(self.workflow)
         return self.execute_node(self.workflow.root)
 
     def execute_node(self, node: Node) -> int:
