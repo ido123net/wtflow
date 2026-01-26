@@ -12,7 +12,6 @@ from wtflow.infra.executors import Executor, Result
 from wtflow.infra.nodes import Node
 
 if TYPE_CHECKING:
-    from wtflow.config import RunConfig
     from wtflow.infra.nodes import Node
     from wtflow.services.db.service import DBServiceInterface
     from wtflow.services.storage.service import StorageServiceInterface
@@ -45,12 +44,10 @@ class WorkflowExecutor:
         workflow: Workflow,
         storage_service: StorageServiceInterface,
         db_service: DBServiceInterface,
-        run_config: RunConfig,
     ):
         self.workflow = workflow
         self.storage_service = storage_service
         self.db_service = db_service
-        self.run_config = run_config
         self._node_result: dict[int, Result | None] = {}
 
     def _read_stream(self, stream: IO[bytes], node: Node, stream_name: str) -> bytes:
@@ -110,12 +107,10 @@ class WorkflowExecutor:
                 fs = [pool.submit(self.execute_node, child) for child in children]
                 return sum(f.result() for f in fs)
         else:
-            failing_nodes = 0
             for child in children:
-                failing_nodes += self.execute_node(child)
-                if not self.run_config.ignore_failure and failing_nodes > 0:
-                    break
-            return failing_nodes
+                if self.execute_node(child):
+                    return 1
+            return 0
 
     def node_result(self, node: Node) -> Result | None:
         return self._node_result.get(id(node))

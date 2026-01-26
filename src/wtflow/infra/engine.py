@@ -20,7 +20,7 @@ class Engine:
             print(workflow.model_dump_json(indent=2, exclude_defaults=True))
             return 0
 
-        workflow_executor = WorkflowExecutor(workflow, self.storage_service, self.db_service, self.config.run)
+        workflow_executor = WorkflowExecutor(workflow, self.storage_service, self.db_service)
         self._workflow_execution[id(workflow)] = workflow_executor
 
         failing_nodes = workflow_executor.run()

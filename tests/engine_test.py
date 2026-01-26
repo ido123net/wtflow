@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from wtflow.config import NO_CONFIG, Config, LocalStorageConfig, RunConfig, Sqlite3Config
+from wtflow.config import NO_CONFIG, Config, LocalStorageConfig, Sqlite3Config
 from wtflow.infra.engine import Engine
 from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Workflow
@@ -92,25 +92,6 @@ def test_stop_on_failure():
     assert engine.run_workflow(wf) == 1
     node_result = engine.get_workflow_executor(wf).node_result(wf.root.children[2])
     assert node_result is None
-
-
-def test_continue_on_failure():
-    config = Config(run=RunConfig(ignore_failure=True))
-    wf = Workflow(
-        name="test continue on failure",
-        root=Node(
-            name="Root Node",
-            children=[
-                Node(name="Node 1", command="command-not-exist"),
-                Node(name="Node 2", command="echo run anyway"),
-            ],
-        ),
-    )
-    engine = Engine(config=config)
-    assert engine.run_workflow(wf) == 1
-    node_result = engine.get_workflow_executor(wf).node_result(wf.root.children[1])
-    assert node_result
-    assert node_result.stdout == b"run anyway\n"
 
 
 def test_with_db_config(db_config):

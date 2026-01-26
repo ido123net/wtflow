@@ -89,18 +89,9 @@ class LocalStorageConfig(StorageConfig):
         return LocalStorageService(base_path=self.base_path)
 
 
-class RunConfig(BaseModel):
-    ignore_failure: bool = False
-
-    @classmethod
-    def from_config_parser(cls, config: ConfigParser) -> RunConfig:
-        return cls(ignore_failure=config.getboolean("run", "ignore_failure", fallback=False))
-
-
 class Config(BaseModel):
     storage: StorageConfig = StorageConfig()
     database: DatabaseConfig = DatabaseConfig()
-    run: RunConfig = RunConfig()
 
     @classmethod
     def from_ini(cls, ini_path: str | pathlib.Path | None = None) -> Config:
@@ -118,5 +109,4 @@ class Config(BaseModel):
         return cls(
             database=DatabaseConfig.from_config_parser(config),
             storage=StorageConfig.from_config_parser(config),
-            run=RunConfig.from_config_parser(config),
         )

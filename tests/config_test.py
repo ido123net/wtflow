@@ -10,7 +10,6 @@ def test_from_ini(tmp_path, ini_config):
     config = Config.from_ini(ini_path=ini_config)
     assert isinstance(config.database, Sqlite3Config)
     assert config.database.database_path == f"{tmp_path}/test.db"
-    assert config.run.ignore_failure is True
 
 
 def test_from_ini_no_file(tmp_path, ini_config, monkeypatch):
@@ -18,7 +17,6 @@ def test_from_ini_no_file(tmp_path, ini_config, monkeypatch):
     config = Config.from_ini()
     assert isinstance(config.database, Sqlite3Config)
     assert config.database.database_path == f"{tmp_path}/test.db"
-    assert config.run.ignore_failure is True
 
 
 def test_bad_ini_not_clspath():
@@ -53,17 +51,8 @@ def test_bad_ini_clspath_not_exists():
 
 def test_no_database_section():
     config_parser = ConfigParser()
-    config_parser.read_string(
-        dedent(
-            """\
-            [run]
-            ignore_failure = true
-            """
-        )
-    )
     config = Config._from_config_parser(config_parser)
     assert config.database == DatabaseConfig()
-    assert config.run.ignore_failure is True
 
 
 def test_no_type_option():
