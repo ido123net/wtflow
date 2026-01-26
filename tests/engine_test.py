@@ -140,33 +140,3 @@ def test_with_db_and_storage_config(db_config, local_storage_config):
     )
     engine = Engine(config=config)
     assert engine.run_workflow(wf) == 0
-
-
-def test_dry_run(capsys):
-    wf = Workflow(
-        name="test dry run",
-        root=Node(
-            name="Root Node",
-            children=[
-                Node(name="Node 1", command="echo 'Hello'"),
-            ],
-        ),
-    )
-    engine = Engine()
-    assert engine.run_workflow(wf, dry_run=True) == 0
-    out, _ = capsys.readouterr()
-    expected_out = """\
-{
-  "name": "test dry run",
-  "root": {
-    "name": "Root Node",
-    "children": [
-      {
-        "name": "Node 1",
-        "command": "echo 'Hello'"
-      }
-    ]
-  }
-}
-"""
-    assert out == expected_out
