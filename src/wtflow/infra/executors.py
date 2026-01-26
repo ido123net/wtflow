@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import signal
-import subprocess
 
 
 class Executor:
@@ -18,12 +18,12 @@ class Executor:
         self.stdout = stdout
         self.stderr = stderr
 
-    def execute(self) -> int | None:
-        self._execute()
-        return self._wait()
+    async def execute(self) -> int | None:
+        await self._execute()
+        return await self._wait()
 
-    def _execute(self) -> None:
-        self.process = subprocess.Popen(
+    async def _execute(self) -> None:
+        self.process = await asyncio.create_subprocess_shell(
             self.command,
             shell=True,
             stdout=self.stdout,
@@ -31,9 +31,9 @@ class Executor:
             start_new_session=True,
         )
 
-    def _wait(self) -> int | None:
+    async def _wait(self) -> int | None:
         try:
-            return self.process.wait(self.timeout)
-        except (subprocess.TimeoutExpired, KeyboardInterrupt):
+            return await asyncio.wait_for(self.process.wait(), self.timeout)
+        except asyncio.TimeoutError:
             os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
-            return self.process.wait()
+            return await self.process.wait()

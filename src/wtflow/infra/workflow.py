@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import itertools
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
@@ -49,13 +49,13 @@ class WorkflowExecutor:
         self.db_service = db_service
         self._node_result: dict[int, int | None] = {}
 
-    def run(self) -> int:
+    async def run(self) -> int:
         self.db_service.add_workflow(self.workflow)
-        return self.execute_node(self.workflow.root)
+        return await self.execute_node(self.workflow.root)
 
-    def execute_node(self, node: Node) -> int:
+    async def execute_node(self, node: Node) -> int:
         if not node.command:
-            return self.execute_children(node.children, node.parallel)
+            return await self.execute_children(node.children, node.parallel)
 
         logger.debug(f"Executing node {node.name!r}")
         self.db_service.start_execution(self.workflow, node)
@@ -64,7 +64,7 @@ class WorkflowExecutor:
             self.storage_service.open_artifact(self.workflow, node, "stderr") as stderr,
         ):
             executor = Executor(node.command, node.timeout, stdout, stderr)
-            result = executor.execute()
+            result = await executor.execute()
         self._node_result[id(node)] = result
         self.db_service.end_execution(self.workflow, node, result)
 
@@ -73,17 +73,15 @@ class WorkflowExecutor:
         if fail:
             return 1
 
-        return int(fail) + self.execute_children(node.children, node.parallel)
+        return int(fail) + await self.execute_children(node.children, node.parallel)
 
-    def execute_children(self, children: list[Node], parallel: bool) -> int:
+    async def execute_children(self, children: list[Node], parallel: bool) -> int:
         if parallel:
             logger.debug(f"Executing {', '.join(repr(child.name) for child in children)} children in parallel")
-            with ThreadPoolExecutor() as pool:
-                fs = [pool.submit(self.execute_node, child) for child in children]
-                return sum(f.result() for f in fs)
+            return sum(await asyncio.gather(*(self.execute_node(child) for child in children)))
         else:
             for child in children:
-                if self.execute_node(child):
+                if await self.execute_node(child):
                     return 1
             return 0
 

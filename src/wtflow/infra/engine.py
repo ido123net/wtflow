@@ -15,11 +15,11 @@ class Engine:
         self.db_service = self.config.database.create_db_service()
         self._workflow_execution: dict[int, WorkflowExecutor] = {}
 
-    def run_workflow(self, workflow: Workflow) -> int:
+    async def run_workflow(self, workflow: Workflow) -> int:
         workflow_executor = WorkflowExecutor(workflow, self.storage_service, self.db_service)
         self._workflow_execution[id(workflow)] = workflow_executor
 
-        failing_nodes = workflow_executor.run()
+        failing_nodes = await workflow_executor.run()
         if failing_nodes:
             logger.error(f"Workflow failed with {failing_nodes} failing nodes.")
             return 1
