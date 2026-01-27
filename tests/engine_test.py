@@ -99,6 +99,25 @@ async def test_stop_on_failure():
 
 
 @pytest.mark.asyncio
+async def test_timeout_node(capfdbinary):
+    wf = Workflow(
+        name="test timeout node",
+        root=Node(
+            name="Root Node",
+            command="echo 'Hello' && sleep 2 && echo 'World'",
+            timeout=0.1,
+        ),
+    )
+    engine = Engine(Config())
+    assert await engine.run_workflow(wf) == 1
+    node_result = engine.get_workflow_executor(wf).node_result(wf.root)
+    assert node_result == -15
+    stdout, stderr = capfdbinary.readouterr()
+    assert stdout == b"Hello\n"
+    assert stderr == b""
+
+
+@pytest.mark.asyncio
 async def test_with_db_config(db_config):
     config = Config(database=db_config)
     wf = Workflow(
