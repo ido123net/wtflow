@@ -50,7 +50,8 @@ class WorkflowExecutor:
         self._node_result: dict[int, int | None] = {}
 
     async def run(self) -> int:
-        self.db_service.add_workflow(self.workflow)
+        await self.db_service.create_tables()
+        await self.db_service.add_workflow(self.workflow)
         return await self.execute_node(self.workflow.root)
 
     async def execute_node(self, node: Node) -> int:
@@ -58,7 +59,7 @@ class WorkflowExecutor:
             return await self.execute_children(node.children, node.parallel)
 
         logger.debug(f"Executing node {node.name!r}")
-        self.db_service.start_execution(self.workflow, node)
+        await self.db_service.start_execution(self.workflow, node)
         with (
             self.storage_service.open_artifact(self.workflow, node, "stdout") as stdout,
             self.storage_service.open_artifact(self.workflow, node, "stderr") as stderr,
@@ -66,7 +67,7 @@ class WorkflowExecutor:
             executor = Executor(node.command, node.timeout, stdout, stderr)
             result = await executor.execute()
         self._node_result[id(node)] = result
-        self.db_service.end_execution(self.workflow, node, result)
+        await self.db_service.end_execution(self.workflow, node, result)
 
         fail = result != 0
 
