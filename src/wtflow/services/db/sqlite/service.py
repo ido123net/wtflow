@@ -43,7 +43,7 @@ class Sqlite3DBService(DBServiceInterface):
                 schema_sql = f.read()
             await conn.executescript(schema_sql)
 
-    async def add_workflow(self, workflow: wtflow.Workflow) -> None:
+    async def add_workflow(self, workflow: wtflow.Workflow) -> int:
         async def add_node(cursor: aiosqlite.Cursor, node: wtflow.Node, workflow_id: int) -> None:
             await cursor.execute(
                 "INSERT INTO nodes (name, command, workflow_id) VALUES (?, ?, ?)",
@@ -71,6 +71,8 @@ class Sqlite3DBService(DBServiceInterface):
             await add_node(cursor, workflow.root, workflow_id)
 
             await conn.commit()
+
+        return workflow_id
 
     async def start_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
         async with self._get_connection() as conn:
