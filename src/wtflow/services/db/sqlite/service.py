@@ -15,6 +15,7 @@ class Sqlite3DBService(DBServiceInterface):
     def __init__(self, database_path: str | Path) -> None:
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        self.nodes_id: dict[wtflow.Node, int] = {}
 
     @asynccontextmanager
     async def _get_connection(self) -> AsyncGenerator[aiosqlite.Connection]:
@@ -36,17 +37,17 @@ class Sqlite3DBService(DBServiceInterface):
             await conn.executescript(schema_sql)
 
     async def add_workflow(self, workflow: wtflow.Workflow) -> None:
-        async def add_node(cursor: aiosqlite.Cursor, node: wtflow.Node) -> None:
+        async def add_node(cursor: aiosqlite.Cursor, node: wtflow.Node, workflow_id: int) -> None:
             await cursor.execute(
-                "INSERT INTO nodes (name, command, lft, rgt, workflow_id) VALUES (?, ?, ?, ?, ?)",
-                (node.name, node.command, node.lft, node.rgt, workflow.id),
+                "INSERT INTO nodes (name, command, workflow_id) VALUES (?, ?, ?)",
+                (node.name, node.command, workflow_id),
             )
             row_id = cursor.lastrowid
             assert row_id
-            node.id = row_id
+            self.nodes_id[node] = row_id
 
             for child in node.children:
-                await add_node(cursor, child)
+                await add_node(cursor, child, workflow_id)
 
         async with self._get_connection() as conn:
             cursor = await conn.cursor()
@@ -57,9 +58,9 @@ class Sqlite3DBService(DBServiceInterface):
             )
             row_id = cursor.lastrowid
             assert row_id
-            workflow.id = row_id
+            workflow_id = row_id
 
-            await add_node(cursor, workflow.root)
+            await add_node(cursor, workflow.root, workflow_id)
 
             await conn.commit()
 
@@ -69,7 +70,7 @@ class Sqlite3DBService(DBServiceInterface):
 
             await cursor.execute(
                 "INSERT INTO executions (start_at, node_id) VALUES (?, ?)",
-                (datetime.now(timezone.utc), node.id),
+                (datetime.now(timezone.utc), self.nodes_id[node]),
             )
 
             await conn.commit()
@@ -80,7 +81,7 @@ class Sqlite3DBService(DBServiceInterface):
 
             await cursor.execute(
                 "UPDATE executions SET end_at = ?, result = ?  WHERE node_id = ?",
-                (datetime.now(timezone.utc), result, node.id),
+                (datetime.now(timezone.utc), result, self.nodes_id[node]),
             )
 
             await conn.commit()

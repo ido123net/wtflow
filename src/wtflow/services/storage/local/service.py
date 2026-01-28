@@ -17,7 +17,7 @@ class LocalStorageService(StorageServiceInterface):
         name: str,
         file_type: str,
     ) -> pathlib.Path:
-        return self.base_path / str(workflow.id) / str(node.id) / f"{name}.{file_type}"
+        return self.base_path / workflow.name / node.name / f"{name}.{file_type}"
 
     @contextmanager
     def open_artifact(
