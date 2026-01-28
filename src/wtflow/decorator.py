@@ -22,7 +22,7 @@ def wf(
             _add_workflow(wf)
         else:
             wf_name = name or func.__name__.replace("_", "-")
-            root_node = wtflow.Node(name=wf_name, children=list(res))
+            root_node = wtflow.Node(name=wf_name, children=tuple(res))
             wf = wtflow.Workflow(name=wf_name, root=root_node)
             _add_workflow(wf)
 

@@ -11,8 +11,6 @@ CREATE TABLE IF NOT EXISTS nodes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     command TEXT NULL,
-    lft INTEGER NOT NULL,
-    rgt INTEGER NOT NULL,
     workflow_id TEXT NOT NULL,
     FOREIGN KEY (workflow_id) REFERENCES workflows (id) ON DELETE CASCADE
 ) STRICT;
