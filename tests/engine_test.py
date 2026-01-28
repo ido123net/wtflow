@@ -66,9 +66,7 @@ async def test_fail_run(capfd):
         ),
     )
     engine = Engine()
-    assert await engine.run_workflow(wf) == 1
-    root_result = engine.workflow_results[id(wf)]
-    assert root_result != 0
+    assert await engine.run_workflow(wf) == NodeResult.FAIL
     _, err = capfd.readouterr()
     assert "not found" in err
 
@@ -95,7 +93,7 @@ async def test_stop_on_failure(capfdbinary):
         ),
     )
     engine = Engine(config=Config())
-    assert await engine.run_workflow(wf) == 1
+    assert await engine.run_workflow(wf) == NodeResult.CHILD_FAILED
     out, _ = capfdbinary.readouterr()
     assert b"EXISTS" in out
     assert b"NOPE" not in out
@@ -112,9 +110,7 @@ async def test_timeout_node(capfdbinary):
         ),
     )
     engine = Engine(Config())
-    assert await engine.run_workflow(wf) == 1
-    root_result = engine.workflow_results[id(wf)]
-    assert root_result == NodeResult.TIMEOUT
+    assert await engine.run_workflow(wf) == NodeResult.TIMEOUT
     stdout, stderr = capfdbinary.readouterr()
     assert stdout == b"Hello\n"
     assert stderr == b""

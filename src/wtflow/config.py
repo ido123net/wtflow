@@ -5,6 +5,7 @@ import os
 import pathlib
 import sys
 from configparser import ConfigParser, SectionProxy
+from functools import cached_property
 
 from pydantic import BaseModel
 
@@ -110,3 +111,11 @@ class Config(BaseModel):
             database=DatabaseConfig.from_config_parser(config),
             storage=StorageConfig.from_config_parser(config),
         )
+
+    @cached_property
+    def db_service(self) -> DBServiceInterface:
+        return self.database.create_db_service()
+
+    @cached_property
+    def storage_service(self) -> StorageServiceInterface:
+        return self.storage.create_storage_service(self.db_service)
