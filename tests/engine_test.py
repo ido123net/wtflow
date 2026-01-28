@@ -4,6 +4,7 @@ import pytest
 
 from wtflow.config import NO_CONFIG, Config, LocalStorageConfig, Sqlite3Config
 from wtflow.infra.engine import Engine
+from wtflow.infra.executors import NodeResult
 from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Workflow
 
@@ -66,14 +67,14 @@ async def test_fail_run(capfd):
     )
     engine = Engine()
     assert await engine.run_workflow(wf) == 1
-    root_node_result = engine.get_workflow_executor(wf).node_result(wf.root)
-    assert root_node_result != 0
+    root_result = engine.workflow_results[id(wf)]
+    assert root_result != 0
     _, err = capfd.readouterr()
     assert "not found" in err
 
 
 @pytest.mark.asyncio
-async def test_stop_on_failure():
+async def test_stop_on_failure(capfdbinary):
     wf = Workflow(
         name="test stop on failure",
         root=Node(
@@ -86,6 +87,7 @@ async def test_stop_on_failure():
                     children=[
                         Node(name="Node 2.1", command='echo "World 2.1"'),
                         Node(name="Node 2.2", command="command-not-exist"),
+                        Node(name="Node 2.3", command='echo "EXISTS" && sleep 1 && echo "NOPE"'),
                     ],
                 ),
                 Node(name="Node 3", command='echo "Hello 3"'),
@@ -94,8 +96,9 @@ async def test_stop_on_failure():
     )
     engine = Engine(config=Config())
     assert await engine.run_workflow(wf) == 1
-    node_result = engine.get_workflow_executor(wf).node_result(wf.root.children[2])
-    assert node_result is None
+    out, _ = capfdbinary.readouterr()
+    assert b"EXISTS" in out
+    assert b"NOPE" not in out
 
 
 @pytest.mark.asyncio
@@ -110,8 +113,8 @@ async def test_timeout_node(capfdbinary):
     )
     engine = Engine(Config())
     assert await engine.run_workflow(wf) == 1
-    node_result = engine.get_workflow_executor(wf).node_result(wf.root)
-    assert node_result == -15
+    root_result = engine.workflow_results[id(wf)]
+    assert root_result == NodeResult.TIMEOUT
     stdout, stderr = capfdbinary.readouterr()
     assert stdout == b"Hello\n"
     assert stderr == b""
