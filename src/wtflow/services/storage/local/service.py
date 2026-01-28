@@ -3,11 +3,13 @@ from contextlib import contextmanager
 from typing import Generator
 
 import wtflow
+from wtflow.services.db.service import DBServiceInterface
 from wtflow.services.storage.service import StorageServiceInterface
 
 
 class LocalStorageService(StorageServiceInterface):
-    def __init__(self, base_path: pathlib.Path | str) -> None:
+    def __init__(self, db_service: DBServiceInterface | None, base_path: pathlib.Path | str) -> None:
+        super().__init__(db_service)
         self.base_path = pathlib.Path(base_path)
 
     def _get_path(
@@ -17,7 +19,9 @@ class LocalStorageService(StorageServiceInterface):
         name: str,
         file_type: str,
     ) -> pathlib.Path:
-        return self.base_path / workflow.name / node.name / f"{name}.{file_type}"
+        workflow_id = self.db_service.get_workflow_id(workflow) or workflow.name
+        node_id = self.db_service.get_node_id(node) or node.name
+        return self.base_path / str(workflow_id) / str(node_id) / f"{name}.{file_type}"
 
     @contextmanager
     def open_artifact(

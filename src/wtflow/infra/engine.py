@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 class Engine:
     def __init__(self, config: Config | None = None) -> None:
         self.config = config or Config.from_ini()
-        self.storage_service = self.config.storage.create_storage_service()
         self.db_service = self.config.database.create_db_service()
+        self.storage_service = self.config.storage.create_storage_service(self.db_service)
         self.workflow_results: dict[int, int] = {}
 
     async def run_workflow(self, workflow: Workflow) -> int:

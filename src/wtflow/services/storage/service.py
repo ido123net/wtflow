@@ -4,9 +4,13 @@ from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager, nullcontext
 
 import wtflow
+from wtflow.services.db.service import DBServiceInterface, NoDBService
 
 
 class StorageServiceInterface(ABC):
+    def __init__(self, db_service: DBServiceInterface | None = None) -> None:
+        self.db_service = db_service or NoDBService()
+
     @abstractmethod
     def open_artifact(
         self,
