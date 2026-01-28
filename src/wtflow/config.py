@@ -61,8 +61,8 @@ class StorageConfig(BaseModel):
     def from_storage_section(cls, section: SectionProxy) -> Self:
         raise NotImplementedError
 
-    def create_storage_service(self) -> StorageServiceInterface:
-        return NoStorageService()
+    def create_storage_service(self, db_service: DBServiceInterface | None = None) -> StorageServiceInterface:
+        return NoStorageService(db_service)
 
     @classmethod
     def from_config_parser(cls, config: ConfigParser) -> StorageConfig:
@@ -83,10 +83,10 @@ class LocalStorageConfig(StorageConfig):
         assert base_path is not None
         return cls(base_path=pathlib.Path(base_path))
 
-    def create_storage_service(self) -> StorageServiceInterface:
+    def create_storage_service(self, db_service: DBServiceInterface | None = None) -> StorageServiceInterface:
         from wtflow.services.storage.local.service import LocalStorageService
 
-        return LocalStorageService(base_path=self.base_path)
+        return LocalStorageService(db_service=db_service, base_path=self.base_path)
 
 
 class Config(BaseModel):

@@ -15,7 +15,14 @@ class Sqlite3DBService(DBServiceInterface):
     def __init__(self, database_path: str | Path) -> None:
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        self.workflows_id: dict[wtflow.Workflow, int] = {}
         self.nodes_id: dict[wtflow.Node, int] = {}
+
+    def get_workflow_id(self, workflow: wtflow.Workflow) -> int:
+        return self.workflows_id[workflow]
+
+    def get_node_id(self, node: wtflow.Node) -> int:
+        return self.nodes_id[node]
 
     @asynccontextmanager
     async def _get_connection(self) -> AsyncGenerator[aiosqlite.Connection]:
@@ -59,6 +66,7 @@ class Sqlite3DBService(DBServiceInterface):
             row_id = cursor.lastrowid
             assert row_id
             workflow_id = row_id
+            self.workflows_id[workflow] = row_id
 
             await add_node(cursor, workflow.root, workflow_id)
 
