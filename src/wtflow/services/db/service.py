@@ -15,6 +15,10 @@ class DBServiceInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def end_workflow(self, workflow: wtflow.Workflow, result: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     async def start_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
         raise NotImplementedError
 
@@ -40,4 +44,7 @@ class NoDBService(DBServiceInterface):
         pass
 
     async def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: int | None = None) -> None:
+        pass
+
+    async def end_workflow(self, workflow: wtflow.Workflow, result: int) -> None:
         pass
