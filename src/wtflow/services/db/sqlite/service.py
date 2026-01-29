@@ -74,6 +74,17 @@ class Sqlite3DBService(DBServiceInterface):
 
         return workflow_id
 
+    async def end_workflow(self, workflow: wtflow.Workflow, result: int) -> None:
+        workflow_id = self.workflows_id[workflow]
+        async with self._get_connection() as conn:
+            cursor = await conn.cursor()
+
+            await cursor.execute(
+                "UPDATE workflows SET result = ? WHERE id = ?",
+                (result, workflow_id),
+            )
+            await conn.commit()
+
     async def start_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
         async with self._get_connection() as conn:
             cursor = await conn.cursor()

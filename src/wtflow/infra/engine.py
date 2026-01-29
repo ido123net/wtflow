@@ -14,19 +14,17 @@ class Engine:
         self.config = config or Config.from_ini()
         self.db_service = self.config.db_service
         self.storage_service = self.config.storage_service
-        self.workflow_results: dict[int, Workflow] = {}
 
     async def init_workflow(self, workflow: Workflow) -> int:
-        workflow_id = await self.db_service.add_workflow(workflow)
-        self.workflow_results[workflow_id] = workflow
-        return workflow_id
+        return await self.db_service.add_workflow(workflow)
 
     async def run_workflow(self, workflow: Workflow) -> int:
         await self.db_service.create_tables()
-        workflow_id = await self.init_workflow(workflow)
-        return await self.execute_workflow(workflow_id)
+        await self.init_workflow(workflow)
+        result = await self.execute_workflow(workflow)
+        await self.db_service.end_workflow(workflow, result)
+        return result
 
-    async def execute_workflow(self, workflow_id: int) -> NodeResult:
-        workflow = self.workflow_results.pop(workflow_id)
+    async def execute_workflow(self, workflow: Workflow) -> NodeResult:
         root_executor = NodeExecutor(workflow, workflow.root, self.storage_service, self.db_service)
         return await root_executor.execute()
