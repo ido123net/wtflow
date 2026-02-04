@@ -1,12 +1,8 @@
 from __future__ import annotations
 
-import logging
-
 from wtflow.config import Config
 from wtflow.infra.executors import NodeExecutor, NodeResult
 from wtflow.infra.workflow import Workflow
-
-logger = logging.getLogger(__name__)
 
 
 class Engine:

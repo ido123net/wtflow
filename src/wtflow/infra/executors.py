@@ -5,11 +5,10 @@ import logging
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
-from wtflow.services.db.service import DBServiceInterface
-
 if TYPE_CHECKING:
     from wtflow.infra.nodes import Node
     from wtflow.infra.workflow import Workflow
+    from wtflow.services.db.service import DBServiceInterface
     from wtflow.services.storage.service import StorageServiceInterface
 
 
