@@ -1,19 +1,10 @@
-import os
-
 import pytest
 
-from wtflow.config import NO_CONFIG, Config, LocalStorageConfig, Sqlite3Config
+from wtflow.config import Config, LocalStorageConfig, Sqlite3Config
 from wtflow.infra.engine import Engine
 from wtflow.infra.executors import NodeResult
 from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Workflow
-
-
-@pytest.fixture(scope="module", autouse=True)
-def no_config():
-    os.environ[NO_CONFIG] = "1"
-    yield
-    del os.environ[NO_CONFIG]
 
 
 @pytest.fixture()

@@ -2,9 +2,6 @@ import importlib.util
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import Any, TypeVar
-
-T = TypeVar("T")
 
 
 def import_file(file_path: Path) -> ModuleType:
@@ -16,13 +13,3 @@ def import_file(file_path: Path) -> ModuleType:
     spec.loader.exec_module(module)
     sys.modules[module_name] = module
     return module
-
-
-def import_module(module_path: str) -> ModuleType:
-    return importlib.import_module(module_path)
-
-
-def load_clspath(clspath: str) -> Any:
-    module_path, class_name = clspath.rsplit(".", 1)
-    module = import_module(module_path)
-    return getattr(module, class_name)

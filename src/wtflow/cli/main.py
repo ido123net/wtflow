@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from wtflow.config import NO_CONFIG, Config
+from wtflow.config import Config
 from wtflow.discover import discover_workflows
 from wtflow.infra.engine import Engine
 from wtflow.infra.workflow import Workflow
@@ -16,18 +16,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     if os.getcwd() not in sys.path:
         sys.path.insert(0, os.getcwd())
     parser = argparse.ArgumentParser(prog="wtflow", description="Wtflow - Workflow orchestration tool")
-
-    parser.add_argument(
-        "--config",
-        "-c",
-        help="Path to config file",
-        type=Path,
-    )
-    parser.add_argument(
-        "--no-config",
-        action="store_true",
-        help="Ignore config file",
-    )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to execute", required=True)
 
@@ -52,12 +40,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    config = None
-    if args.no_config or (os.environ.get(NO_CONFIG, False) and not args.config):
-        config = Config()
-    elif args.config:
-        config = Config.from_ini(args.config)
-
+    config = Config()
     wf_path: Path = args.workflows_path
     if not wf_path.exists():
         print(f"Error: The specified workflows path '{args.workflows_path}' does not exist.", file=sys.stderr)

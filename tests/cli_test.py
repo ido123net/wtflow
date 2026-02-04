@@ -60,19 +60,6 @@ def test_run_workflow(wtfile, capfd, tmp_path, monkeypatch):
     assert out == "Hello, World!\n"
 
 
-def test_with_config(wtfile, ini_config, capsys):
-    main(["--config", str(ini_config), "run", "--workflow", "hello-world", str(wtfile)])
-    out, _ = capsys.readouterr()
-    assert out == ""
-
-
-def test_ignore_config(wtfile, ini_config, tmp_path, monkeypatch, capfd):
-    monkeypatch.chdir(tmp_path)
-    main(["--no-config", "run", "--workflow", "hello-world", str(wtfile)])
-    out, _ = capfd.readouterr()
-    assert out == "Hello, World!\n"
-
-
 def test_file_not_exist(capsys):
     res = main(["list", "/does/not/exist.py"])
     assert res == 1
