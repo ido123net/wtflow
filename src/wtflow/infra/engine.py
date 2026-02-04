@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class Engine:
     def __init__(self, config: Config | None = None) -> None:
-        self.config = config or Config.from_ini()
+        self.config = config or Config()
         self.db_service = self.config.db_service
         self.storage_service = self.config.storage_service
 
