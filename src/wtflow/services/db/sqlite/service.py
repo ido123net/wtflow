@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+import sqlite3
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AsyncGenerator
-
-import aiosqlite
+from typing import Generator
 
 import wtflow
 from wtflow.services.db.service import DBServiceInterface
@@ -24,11 +23,11 @@ class Sqlite3DBService(DBServiceInterface):
     def get_node_id(self, node: wtflow.Node) -> int:
         return self.nodes_id[node]
 
-    @asynccontextmanager
-    async def _get_connection(self) -> AsyncGenerator[aiosqlite.Connection]:
-        aiosqlite.register_adapter(datetime, self._adapt_datetime)
+    @contextmanager
+    def _get_connection(self) -> Generator[sqlite3.Connection]:
+        sqlite3.register_adapter(datetime, self._adapt_datetime)
 
-        async with aiosqlite.connect(self.database_path) as cx:
+        with closing(sqlite3.connect(self.database_path)) as cx:
             yield cx
 
     @staticmethod
@@ -38,14 +37,14 @@ class Sqlite3DBService(DBServiceInterface):
     async def create_tables(self) -> None:
         schema_path = Path(__file__).parent / "schema.sql"
 
-        async with self._get_connection() as conn:
+        with self._get_connection() as conn:
             with open(schema_path, "r") as f:
                 schema_sql = f.read()
-            await conn.executescript(schema_sql)
+            conn.executescript(schema_sql)
 
     async def add_workflow(self, workflow: wtflow.Workflow) -> int:
-        async def add_node(cursor: aiosqlite.Cursor, node: wtflow.Node, workflow_id: int) -> None:
-            await cursor.execute(
+        async def add_node(cursor: sqlite3.Cursor, node: wtflow.Node, workflow_id: int) -> None:
+            cursor.execute(
                 "INSERT INTO nodes (name, command, workflow_id) VALUES (?, ?, ?)",
                 (node.name, node.command, workflow_id),
             )
@@ -56,10 +55,10 @@ class Sqlite3DBService(DBServiceInterface):
             for child in node.children:
                 await add_node(cursor, child, workflow_id)
 
-        async with self._get_connection() as conn:
-            cursor = await conn.cursor()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            await cursor.execute(
+            cursor.execute(
                 "INSERT INTO workflows (name, created_at) VALUES (?, ?)",
                 (workflow.name, datetime.now(timezone.utc)),
             )
@@ -70,39 +69,39 @@ class Sqlite3DBService(DBServiceInterface):
 
             await add_node(cursor, workflow.root, workflow_id)
 
-            await conn.commit()
+            conn.commit()
 
         return workflow_id
 
     async def end_workflow(self, workflow: wtflow.Workflow, result: int) -> None:
         workflow_id = self.workflows_id[workflow]
-        async with self._get_connection() as conn:
-            cursor = await conn.cursor()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            await cursor.execute(
+            cursor.execute(
                 "UPDATE workflows SET result = ? WHERE id = ?",
                 (result, workflow_id),
             )
-            await conn.commit()
+            conn.commit()
 
     async def start_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
-        async with self._get_connection() as conn:
-            cursor = await conn.cursor()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            await cursor.execute(
+            cursor.execute(
                 "INSERT INTO executions (start_at, node_id) VALUES (?, ?)",
                 (datetime.now(timezone.utc), self.nodes_id[node]),
             )
 
-            await conn.commit()
+            conn.commit()
 
     async def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: int | None = None) -> None:
-        async with self._get_connection() as conn:
-            cursor = await conn.cursor()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
 
-            await cursor.execute(
+            cursor.execute(
                 "UPDATE executions SET end_at = ?, result = ?  WHERE node_id = ?",
                 (datetime.now(timezone.utc), result, self.nodes_id[node]),
             )
 
-            await conn.commit()
+            conn.commit()
