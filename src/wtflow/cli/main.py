@@ -3,8 +3,9 @@ import asyncio
 import json
 import os
 import sys
+from dataclasses import asdict
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 from wtflow.config import Config
 from wtflow.discover import discover_workflows
@@ -89,7 +90,11 @@ async def _cmd_run(
         wfs = [workflow_dict[workflow_name]]
 
     if dry_run:
-        print(json.dumps([workflow.model_dump(exclude_defaults=True) for workflow in wfs], indent=2))
+
+        def _dict_factory(x: list[tuple[str, Any]]) -> dict[str, Any]:
+            return {k: v for k, v in x if v}
+
+        print(json.dumps([asdict(workflow, dict_factory=_dict_factory) for workflow in wfs], indent=2))
         return 0
 
     for wf in wfs:

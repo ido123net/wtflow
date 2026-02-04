@@ -1,18 +1,13 @@
 from __future__ import annotations
 
-import logging
-from typing import Annotated
-
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
-
-logger = logging.getLogger(__name__)
+from dataclasses import dataclass, field
+from typing import Iterable
 
 
-class Node(BaseModel):
+@dataclass(frozen=True)
+class Node:
     name: str
     command: str | None = None
     timeout: float | None = None
     parallel: bool = False
-    children: Annotated[tuple[Node, ...], BeforeValidator(lambda x: tuple(x))] = Field(default_factory=tuple)
-
-    model_config = ConfigDict(frozen=True)
+    children: Iterable[Node] = field(default_factory=tuple, hash=False)
