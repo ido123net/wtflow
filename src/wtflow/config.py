@@ -3,7 +3,6 @@ from __future__ import annotations
 import pathlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from functools import cached_property
 
 from wtflow.services.db.db_service import DBServiceInterface, NoDBService
 from wtflow.services.storage.storage_service import NoStorageService, StorageServiceInterface
@@ -53,13 +52,5 @@ class LocalStorageConfig(StorageConfig):
 
 @dataclass
 class Config:
-    storage: StorageConfig = field(default_factory=NoStorageConfig)
     database: DatabaseConfig = field(default_factory=NoDatabaseConfig)
-
-    @cached_property
-    def db_service(self) -> DBServiceInterface:
-        return self.database.create_db_service()
-
-    @cached_property
-    def storage_service(self) -> StorageServiceInterface:
-        return self.storage.create_storage_service(self.db_service)
+    storage: StorageConfig = field(default_factory=NoStorageConfig)

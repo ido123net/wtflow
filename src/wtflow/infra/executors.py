@@ -11,9 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from wtflow.infra.nodes import Node
     from wtflow.infra.workflow import Workflow
-    from wtflow.services.base_service import BaseService
-    from wtflow.services.db.db_service import DBServiceInterface
-    from wtflow.services.storage.storage_service import StorageServiceInterface
+    from wtflow.services.servicer import Servicer
 
 logger = logging.getLogger(__name__)
 
@@ -31,43 +29,32 @@ class NodeExecutor:
         self,
         workflow: Workflow,
         node: Node,
-        storage_service: StorageServiceInterface,
-        db_service: DBServiceInterface,
+        servicer: Servicer,
     ) -> None:
         self.workflow = workflow
         self.node = node
-        self.storage_service = storage_service
-        self.db_service = db_service
+        self.servicer = servicer
         self._process: asyncio.subprocess.Process | None = None
-        self._services: list[BaseService] = [self.storage_service, self.db_service]
-
-    def _start_services(self) -> None:
-        for service in self._services:
-            service.start()
-
-    def _stop_services(self) -> None:
-        for service in self._services:
-            service.stop()
 
     async def execute(self) -> NodeResult:
         logger.debug(f"Start execution of {self.node.name!r}")
-        await self.db_service.start_execution(self.workflow, self.node)
+        await self.servicer.db_service.start_execution(self.workflow, self.node)
         try:
-            self._start_services()
+            self.servicer.start_services()
             return await self._execute()
         finally:
             logger.debug(f"End execution of {self.node.name!r}")
             retcode = await self._process.wait() if self._process else None
             logger.debug(f"Node {self.node.name!r} {retcode = }")
-            await self.db_service.end_execution(self.workflow, self.node, retcode)
-            self._stop_services()
+            await self.servicer.db_service.end_execution(self.workflow, self.node, retcode)
+            self.servicer.stop_services()
 
     async def _read_stream(self, name: str) -> None:
         assert self._process is not None
         stream: asyncio.StreamReader = getattr(self._process, name)
         while data := await stream.readline():
             logger.debug(f"got data: {data=}")
-            with self.storage_service.open_artifact(self.workflow, self.node, name) as f:
+            with self.servicer.storage_service.open_artifact(self.workflow, self.node, name) as f:
                 if f is not None:
                     os.write(f, data)
                 else:
@@ -114,7 +101,7 @@ class NodeExecutor:
 
         children = self.node.children
         parallel = self.node.parallel
-        executors = [NodeExecutor(self.workflow, child, self.storage_service, self.db_service) for child in children]
+        executors = [NodeExecutor(self.workflow, child, self.servicer) for child in children]
         if parallel:
             logger.debug(f"Executing {', '.join(repr(child.name) for child in children)} children in parallel")
             tasks = [asyncio.create_task(executor._execute()) for executor in executors]
