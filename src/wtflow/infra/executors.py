@@ -11,8 +11,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from wtflow.infra.nodes import Node
     from wtflow.infra.workflow import Workflow
-    from wtflow.services.db.service import DBServiceInterface
-    from wtflow.services.storage.service import StorageServiceInterface
+    from wtflow.services.base_service import BaseService
+    from wtflow.services.db.db_service import DBServiceInterface
+    from wtflow.services.storage.storage_service import StorageServiceInterface
 
 logger = logging.getLogger(__name__)
 
@@ -37,22 +38,33 @@ class NodeExecutor:
         self.node = node
         self.storage_service = storage_service
         self.db_service = db_service
-        self.process: asyncio.subprocess.Process | None = None
+        self._process: asyncio.subprocess.Process | None = None
+        self._services: list[BaseService] = [self.storage_service, self.db_service]
+
+    def _start_services(self) -> None:
+        for service in self._services:
+            service.start()
+
+    def _stop_services(self) -> None:
+        for service in self._services:
+            service.stop()
 
     async def execute(self) -> NodeResult:
         logger.debug(f"Start execution of {self.node.name!r}")
         await self.db_service.start_execution(self.workflow, self.node)
         try:
+            self._start_services()
             return await self._execute()
         finally:
             logger.debug(f"End execution of {self.node.name!r}")
-            retcode = await self.process.wait() if self.process else None
+            retcode = await self._process.wait() if self._process else None
             logger.debug(f"Node {self.node.name!r} {retcode = }")
             await self.db_service.end_execution(self.workflow, self.node, retcode)
+            self._stop_services()
 
     async def _read_stream(self, name: str) -> None:
-        assert self.process is not None
-        stream: asyncio.StreamReader = getattr(self.process, name)
+        assert self._process is not None
+        stream: asyncio.StreamReader = getattr(self._process, name)
         while data := await stream.readline():
             logger.debug(f"got data: {data=}")
             with self.storage_service.open_artifact(self.workflow, self.node, name) as f:
@@ -62,9 +74,9 @@ class NodeExecutor:
                     getattr(sys, name).write(data.decode())
 
     def _terminate(self) -> None:
-        if self.process and self.process.returncode is None:
+        if self._process and self._process.returncode is None:
             logger.debug("Terminate process")
-            os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+            os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
 
     async def _execute(self) -> NodeResult:
         return await self._execute_command(self.node.command) or await self.execute_children()
@@ -73,17 +85,18 @@ class NodeExecutor:
         if command is None:
             return NodeResult.SUCCESS
 
-        self.process = await asyncio.create_subprocess_shell(
+        self._process = await asyncio.create_subprocess_shell(
             command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             start_new_session=True,
         )
-        logger.debug(f"started process with {self.process.pid=}")
+        pid = self._process.pid
+        logger.debug(f"started process with {pid=}")
         stdout_task = asyncio.create_task(self._read_stream("stdout"))
         stderr_task = asyncio.create_task(self._read_stream("stderr"))
         try:
-            result = await asyncio.wait_for(self.process.wait(), self.node.timeout)
+            result = await asyncio.wait_for(self._process.wait(), self.node.timeout)
             return NodeResult.FAIL if result else NodeResult.SUCCESS
         except asyncio.TimeoutError:
             logger.debug(f"Node {self.node.name} timeout")

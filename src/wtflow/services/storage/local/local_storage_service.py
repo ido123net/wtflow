@@ -3,8 +3,8 @@ from contextlib import contextmanager
 from typing import Generator
 
 import wtflow
-from wtflow.services.db.service import DBServiceInterface
-from wtflow.services.storage.service import StorageServiceInterface
+from wtflow.services.db.db_service import DBServiceInterface
+from wtflow.services.storage.storage_service import StorageServiceInterface
 
 
 class LocalStorageService(StorageServiceInterface):

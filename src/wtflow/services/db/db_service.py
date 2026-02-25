@@ -1,11 +1,18 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 import wtflow
+from wtflow.services.base_service import BaseService
 
 
-class DBServiceInterface(ABC):
+class DBServiceInterface(BaseService):
+    def start(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        pass
+
     @abstractmethod
     async def create_tables(self) -> None:
         raise NotImplementedError

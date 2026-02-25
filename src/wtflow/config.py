@@ -5,8 +5,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import cached_property
 
-from wtflow.services.db.service import DBServiceInterface, NoDBService
-from wtflow.services.storage.service import NoStorageService, StorageServiceInterface
+from wtflow.services.db.db_service import DBServiceInterface, NoDBService
+from wtflow.services.storage.storage_service import NoStorageService, StorageServiceInterface
 
 
 class DatabaseConfig(ABC):
@@ -25,7 +25,7 @@ class Sqlite3Config(DatabaseConfig):
     database_path: str
 
     def create_db_service(self) -> DBServiceInterface:
-        from wtflow.services.db.sqlite.service import Sqlite3DBService
+        from wtflow.services.db.sqlite.sqlite_db_service import Sqlite3DBService
 
         return Sqlite3DBService(self.database_path)
 
@@ -46,7 +46,7 @@ class LocalStorageConfig(StorageConfig):
     base_path: pathlib.Path
 
     def create_storage_service(self, db_service: DBServiceInterface | None = None) -> StorageServiceInterface:
-        from wtflow.services.storage.local.service import LocalStorageService
+        from wtflow.services.storage.local.local_storage_service import LocalStorageService
 
         return LocalStorageService(db_service=db_service, base_path=self.base_path)
 
