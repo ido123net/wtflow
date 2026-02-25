@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import signal
+import sys
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
@@ -11,12 +14,11 @@ if TYPE_CHECKING:
     from wtflow.services.db.service import DBServiceInterface
     from wtflow.services.storage.service import StorageServiceInterface
 
-
 logger = logging.getLogger(__name__)
 
 
 class NodeResult(IntEnum):
-    SUCESS = 0
+    SUCCESS = 0
     FAIL = 1
     CHILD_FAILED = 2
     TIMEOUT = 3
@@ -43,60 +45,77 @@ class NodeExecutor:
         try:
             return await self._execute()
         finally:
+            logger.debug(f"End execution of {self.node.name!r}")
             retcode = await self.process.wait() if self.process else None
             logger.debug(f"Node {self.node.name!r} {retcode = }")
             await self.db_service.end_execution(self.workflow, self.node, retcode)
 
+    async def _read_stream(self, name: str) -> None:
+        assert self.process is not None
+        stream: asyncio.StreamReader = getattr(self.process, name)
+        while data := await stream.readline():
+            logger.debug(f"got data: {data=}")
+            with self.storage_service.open_artifact(self.workflow, self.node, name) as f:
+                if f is not None:
+                    os.write(f, data)
+                else:
+                    getattr(sys, name).write(data.decode())
+
+    def _terminate(self) -> None:
+        if self.process and self.process.returncode is None:
+            logger.debug("Terminate process")
+            os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+
     async def _execute(self) -> NodeResult:
-        command = self.node.command
+        return await self._execute_command(self.node.command) or await self.execute_children()
 
+    async def _execute_command(self, command: str | None) -> NodeResult:
         if command is None:
-            return await self.execute_children()
+            return NodeResult.SUCCESS
 
-        with (
-            self.storage_service.open_artifact(self.workflow, self.node, "stdout") as stdout,
-            self.storage_service.open_artifact(self.workflow, self.node, "stderr") as stderr,
-        ):
-            self.process = await asyncio.create_subprocess_shell(
-                command,
-                shell=True,
-                stdout=stdout,
-                stderr=stderr,
-            )
-            try:
-                result = await asyncio.wait_for(self.process.wait(), self.node.timeout)
-                if result:
-                    return NodeResult.FAIL
-            except asyncio.TimeoutError:
-                logger.debug(f"Node {self.node.name} timeout")
-                return NodeResult.TIMEOUT
-            except asyncio.CancelledError:
-                logger.debug(f"Node {self.node.name} cancel")
-                return NodeResult.CANCEL
-            finally:
-                if self.process.returncode is None:
-                    self.process.terminate()
-
-        return await self.execute_children()
+        self.process = await asyncio.create_subprocess_shell(
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            start_new_session=True,
+        )
+        logger.debug(f"started process with {self.process.pid=}")
+        stdout_task = asyncio.create_task(self._read_stream("stdout"))
+        stderr_task = asyncio.create_task(self._read_stream("stderr"))
+        try:
+            result = await asyncio.wait_for(self.process.wait(), self.node.timeout)
+            return NodeResult.FAIL if result else NodeResult.SUCCESS
+        except asyncio.TimeoutError:
+            logger.debug(f"Node {self.node.name} timeout")
+            return NodeResult.TIMEOUT
+        except asyncio.CancelledError:
+            logger.debug(f"Node {self.node.name} canceled")
+            return NodeResult.CANCEL
+        finally:
+            self._terminate()
+            await asyncio.gather(stdout_task, stderr_task)
 
     async def execute_children(self) -> NodeResult:
-        try:
-            return await self._execute_children()
-        except asyncio.CancelledError:
-            return NodeResult.CHILD_FAILED
+        if not self.node.children:
+            return NodeResult.SUCCESS
 
-    async def _execute_children(self) -> NodeResult:
         children = self.node.children
         parallel = self.node.parallel
-        executors = [type(self)(self.workflow, child, self.storage_service, self.db_service) for child in children]
+        executors = [NodeExecutor(self.workflow, child, self.storage_service, self.db_service) for child in children]
         if parallel:
             logger.debug(f"Executing {', '.join(repr(child.name) for child in children)} children in parallel")
             tasks = [asyncio.create_task(executor._execute()) for executor in executors]
             for result in asyncio.as_completed(tasks):
                 if await result:
-                    raise asyncio.CancelledError
+                    _cancel_tasks(tasks)
+                    return NodeResult.CHILD_FAILED
         else:
             for executor in executors:
                 if await executor._execute():
-                    raise asyncio.CancelledError
-        return NodeResult.SUCESS
+                    return NodeResult.CHILD_FAILED
+        return NodeResult.SUCCESS
+
+
+def _cancel_tasks(tasks: list[asyncio.Task[NodeResult]]) -> None:
+    for task in tasks:
+        task.cancel()
