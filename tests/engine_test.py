@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from wtflow.config import Config, LocalStorageConfig, Sqlite3Config
@@ -96,12 +98,15 @@ async def test_timeout_node(capfdbinary):
         name="test timeout node",
         root=Node(
             name="Root Node",
-            command="echo 'Hello' && sleep 2 && echo 'World'",
+            command="echo 'Hello' && sleep 1 && echo 'World'",
             timeout=0.1,
         ),
     )
     engine = Engine(Config())
+    start_time = time.perf_counter()
     assert await engine.run_workflow(wf) == NodeResult.TIMEOUT
+    elapsed = time.perf_counter() - start_time
+    assert elapsed < 0.2
     stdout, stderr = capfdbinary.readouterr()
     assert stdout == b"Hello\n"
     assert stderr == b""
