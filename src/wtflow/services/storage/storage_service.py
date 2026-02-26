@@ -5,19 +5,9 @@ from contextlib import AbstractContextManager, nullcontext
 
 import wtflow
 from wtflow.services.base_service import BaseService
-from wtflow.services.db.db_service import DBServiceInterface, NoDBService
 
 
 class StorageServiceInterface(BaseService):
-    def __init__(self, db_service: DBServiceInterface | None = None) -> None:
-        self.db_service = db_service or NoDBService()
-
-    def start(self) -> None:
-        pass
-
-    def stop(self) -> None:
-        pass
-
     @abstractmethod
     def open_artifact(
         self,

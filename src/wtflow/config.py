@@ -31,23 +31,23 @@ class Sqlite3Config(DatabaseConfig):
 
 class StorageConfig(ABC):
     @abstractmethod
-    def create_storage_service(self, db_service: DBServiceInterface | None = None) -> StorageServiceInterface:
+    def create_storage_service(self) -> StorageServiceInterface:
         return NotImplemented
 
 
 class NoStorageConfig(StorageConfig):
-    def create_storage_service(self, db_service: DBServiceInterface | None = None) -> StorageServiceInterface:
-        return NoStorageService(db_service)
+    def create_storage_service(self) -> StorageServiceInterface:
+        return NoStorageService()
 
 
 @dataclass
 class LocalStorageConfig(StorageConfig):
     base_path: pathlib.Path
 
-    def create_storage_service(self, db_service: DBServiceInterface | None = None) -> StorageServiceInterface:
+    def create_storage_service(self) -> StorageServiceInterface:
         from wtflow.services.storage.local.local_storage_service import LocalStorageService
 
-        return LocalStorageService(db_service=db_service, base_path=self.base_path)
+        return LocalStorageService(base_path=self.base_path)
 
 
 @dataclass

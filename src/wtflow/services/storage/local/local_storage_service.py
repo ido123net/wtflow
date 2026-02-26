@@ -3,13 +3,12 @@ from contextlib import contextmanager
 from typing import Generator
 
 import wtflow
-from wtflow.services.db.db_service import DBServiceInterface
 from wtflow.services.storage.storage_service import StorageServiceInterface
 
 
 class LocalStorageService(StorageServiceInterface):
-    def __init__(self, db_service: DBServiceInterface | None, base_path: pathlib.Path | str) -> None:
-        super().__init__(db_service)
+    def __init__(self, base_path: pathlib.Path | str) -> None:
+        super().__init__()
         self.base_path = pathlib.Path(base_path)
 
     def _get_path(
@@ -19,8 +18,8 @@ class LocalStorageService(StorageServiceInterface):
         name: str,
         file_type: str,
     ) -> pathlib.Path:
-        workflow_id = self.db_service.get_workflow_id(workflow) or workflow.name
-        node_id = self.db_service.get_node_id(node) or node.name
+        workflow_id = workflow.name
+        node_id = node.name
         return self.base_path / str(workflow_id) / str(node_id) / f"{name}.{file_type}"
 
     @contextmanager
