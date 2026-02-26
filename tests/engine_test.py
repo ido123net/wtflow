@@ -136,7 +136,7 @@ async def test_with_storage_config(local_storage_config, data_dir):
         root=Node(
             name="Root Node",
             children=[
-                Node(name="Node 1", command="echo 'Hello'"),
+                Node(name="Node 1", command="echo 'Hello' && echo 'world'"),
             ],
         ),
     )
@@ -144,7 +144,7 @@ async def test_with_storage_config(local_storage_config, data_dir):
     assert await engine.run_workflow(wf) == 0
     log_path = data_dir / "test no db" / "Node 1" / "stdout.txt"
     assert log_path.exists()
-    assert log_path.read_text() == "Hello\n"
+    assert log_path.read_text() == "Hello\nworld\n"
 
 
 @pytest.mark.asyncio

@@ -4,7 +4,6 @@ import asyncio
 import logging
 import os
 import signal
-import sys
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
@@ -48,13 +47,10 @@ class NodeExecutor:
     async def _read_stream(self, name: str) -> None:
         assert self._process is not None
         stream: asyncio.StreamReader = getattr(self._process, name)
-        while data := await stream.readline():
-            logger.debug(f"got data: {data=}")
-            with self.servicer.storage_service.open_artifact(self.workflow, self.node, name) as f:
-                if f is not None:
-                    os.write(f, data)
-                else:
-                    getattr(sys, name).write(data.decode())
+        with self.servicer.storage_service.open_artifact(self.workflow, self.node, name) as f:
+            while data := await stream.readline():
+                logger.debug(f"got data: {data=}")
+                f.write(data)
 
     def _terminate(self) -> None:
         if self._process and self._process.returncode is None:

@@ -1,9 +1,27 @@
 import pathlib
 from contextlib import contextmanager
+from io import BufferedWriter
 from typing import Generator
 
 import wtflow
-from wtflow.services.storage.storage_service import StorageServiceInterface
+from wtflow.services.storage.storage_service import ArtifactWriter, StorageServiceInterface
+
+
+class LocalArtifactWriter(ArtifactWriter):
+    def __init__(self, path: pathlib.Path) -> None:
+        self.path = path
+        self._handle: BufferedWriter | None = None
+
+    def write(self, data: bytes) -> int:
+        if self._handle is None:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            self._handle = self.path.open("ab")
+        return self._handle.write(data)
+
+    def close(self) -> None:
+        if self._handle is not None:
+            self._handle.close()
+            self._handle = None
 
 
 class LocalStorageService(StorageServiceInterface):
@@ -29,8 +47,10 @@ class LocalStorageService(StorageServiceInterface):
         node: wtflow.Node,
         name: str,
         file_type: str = "txt",
-    ) -> Generator[int, None, None]:
-        artifact_path = self._get_path(workflow, node, name, file_type)
-        artifact_path.parent.mkdir(parents=True, exist_ok=True)
-        with artifact_path.open("ab") as f:
-            yield f.fileno()
+    ) -> Generator[LocalArtifactWriter, None, None]:
+        path = self._get_path(workflow, node, name, file_type)
+        writer = LocalArtifactWriter(path)
+        try:
+            yield writer
+        finally:
+            writer.close()
