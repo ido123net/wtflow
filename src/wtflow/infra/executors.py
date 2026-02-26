@@ -4,7 +4,6 @@ import asyncio
 import logging
 import os
 import signal
-import sys
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
@@ -39,26 +38,19 @@ class NodeExecutor:
     async def execute(self) -> NodeResult:
         logger.debug(f"Start execution of {self.node.name!r}")
         await self.servicer.db_service.start_execution(self.workflow, self.node)
-        try:
-            self.servicer.start_services()
-            return await self._execute()
-        finally:
-            logger.debug(f"End execution of {self.node.name!r}")
-            retcode = await self._process.wait() if self._process else None
-            logger.debug(f"Node {self.node.name!r} {retcode = }")
-            await self.servicer.db_service.end_execution(self.workflow, self.node, retcode)
-            self.servicer.stop_services()
+        result = await self._execute()
+        logger.debug(f"End execution of {self.node.name!r}")
+        logger.debug(f"Node {self.node.name!r} {result = }")
+        await self.servicer.db_service.end_execution(self.workflow, self.node, result)
+        return result
 
     async def _read_stream(self, name: str) -> None:
         assert self._process is not None
         stream: asyncio.StreamReader = getattr(self._process, name)
-        while data := await stream.readline():
-            logger.debug(f"got data: {data=}")
-            with self.servicer.storage_service.open_artifact(self.workflow, self.node, name) as f:
-                if f is not None:
-                    os.write(f, data)
-                else:
-                    getattr(sys, name).write(data.decode())
+        with self.servicer.storage_service.open_artifact(self.workflow, self.node, name) as f:
+            while data := await stream.readline():
+                logger.debug(f"got data: {data=}")
+                f.write(data)
 
     def _terminate(self) -> None:
         if self._process and self._process.returncode is None:
@@ -94,6 +86,7 @@ class NodeExecutor:
         finally:
             self._terminate()
             await asyncio.gather(stdout_task, stderr_task)
+            await self._process.wait()
 
     async def execute_children(self) -> NodeResult:
         if not self.node.children:
@@ -104,14 +97,14 @@ class NodeExecutor:
         executors = [NodeExecutor(self.workflow, child, self.servicer) for child in children]
         if parallel:
             logger.debug(f"Executing {', '.join(repr(child.name) for child in children)} children in parallel")
-            tasks = [asyncio.create_task(executor._execute()) for executor in executors]
+            tasks = [asyncio.create_task(executor.execute()) for executor in executors]
             for result in asyncio.as_completed(tasks):
                 if await result:
                     _cancel_tasks(tasks)
                     return NodeResult.CHILD_FAILED
         else:
             for executor in executors:
-                if await executor._execute():
+                if await executor.execute():
                     return NodeResult.CHILD_FAILED
         return NodeResult.SUCCESS
 
