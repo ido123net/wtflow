@@ -11,7 +11,6 @@ class Node:
     name: str
     command: str | None = None
     timeout: float | None = None
-    parallel: bool = False
     children: Iterable[Node] = field(default_factory=tuple, hash=False)
     artifacts: Iterable[Artifact] = field(default_factory=set, hash=False)
 

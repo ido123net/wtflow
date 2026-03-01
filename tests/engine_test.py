@@ -36,7 +36,6 @@ async def test_run():
                 Node(name="Node 1", command='echo "Hello 1"'),
                 Node(
                     name="Node 2",
-                    parallel=True,
                     children=[
                         Node(name="Node 2.1", command='echo "World 2.1"'),
                         Node(name="Node 2.2", command='echo "World 2.2"'),
@@ -74,7 +73,6 @@ async def test_stop_on_failure(capfdbinary):
                 Node(name="Node 1", command='echo "Hello 1"'),
                 Node(
                     name="Node 2",
-                    parallel=True,
                     children=[
                         Node(name="Node 2.1", command='echo "World 2.1"'),
                         Node(name="Node 2.2", command="command-not-exist"),
