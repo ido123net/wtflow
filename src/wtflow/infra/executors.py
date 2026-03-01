@@ -38,7 +38,7 @@ class NodeExecutor:
     async def execute(self) -> NodeResult:
         logger.debug(f"Start execution of {self.node.name!r}")
         await self.servicer.db_service.start_execution(self.workflow, self.node)
-        result = await self._execute()
+        result = await self._execute_command(self.node.command) or await self._execute_children()
         logger.debug(f"End execution of {self.node.name!r}")
         logger.debug(f"Node {self.node.name!r} {result = }")
         await self.servicer.db_service.end_execution(self.workflow, self.node, result)
@@ -56,9 +56,6 @@ class NodeExecutor:
         if self._process and self._process.returncode is None:
             logger.debug("Terminate process")
             os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
-
-    async def _execute(self) -> NodeResult:
-        return await self._execute_command(self.node.command) or await self.execute_children()
 
     async def _execute_command(self, command: str | None) -> NodeResult:
         if command is None:
@@ -88,24 +85,17 @@ class NodeExecutor:
             await asyncio.gather(stdout_task, stderr_task)
             await self._process.wait()
 
-    async def execute_children(self) -> NodeResult:
+    async def _execute_children(self) -> NodeResult:
         if not self.node.children:
             return NodeResult.SUCCESS
 
         children = self.node.children
-        parallel = self.node.parallel
         executors = [NodeExecutor(self.workflow, child, self.servicer) for child in children]
-        if parallel:
-            logger.debug(f"Executing {', '.join(repr(child.name) for child in children)} children in parallel")
-            tasks = [asyncio.create_task(executor.execute()) for executor in executors]
-            for result in asyncio.as_completed(tasks):
-                if await result:
-                    _cancel_tasks(tasks)
-                    return NodeResult.CHILD_FAILED
-        else:
-            for executor in executors:
-                if await executor.execute():
-                    return NodeResult.CHILD_FAILED
+        tasks = [asyncio.create_task(executor.execute()) for executor in executors]
+        for result in asyncio.as_completed(tasks):
+            if await result:
+                _cancel_tasks(tasks)
+                return NodeResult.CHILD_FAILED
         return NodeResult.SUCCESS
 
 
