@@ -8,11 +8,7 @@ from wtflow.services.base_service import BaseService
 
 class DBServiceInterface(BaseService):
     @abstractmethod
-    async def create_tables(self) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def add_workflow(self, workflow: wtflow.Workflow) -> int:
+    async def add_workflow(self, workflow: wtflow.Workflow) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -29,11 +25,8 @@ class DBServiceInterface(BaseService):
 
 
 class NoDBService(DBServiceInterface):
-    async def create_tables(self) -> None:
+    async def add_workflow(self, workflow: wtflow.Workflow) -> None:
         pass
-
-    async def add_workflow(self, workflow: wtflow.Workflow) -> int:
-        return id(workflow)
 
     async def start_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
         pass

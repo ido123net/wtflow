@@ -16,7 +16,6 @@ class Sqlite3DBService(DBServiceInterface):
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self._workflows_id: dict[wtflow.Workflow, int] = {}
         self._nodes_id: dict[wtflow.Node, int] = {}
-        self._execution_id: dict[wtflow.Node, int] = {}
 
     @contextmanager
     def _get_connection(self) -> Generator[sqlite3.Connection]:
@@ -29,15 +28,7 @@ class Sqlite3DBService(DBServiceInterface):
     def _adapt_datetime(dt: datetime) -> str:
         return dt.isoformat()
 
-    async def create_tables(self) -> None:
-        schema_path = Path(__file__).parent / "schema.sql"
-
-        with self._get_connection() as conn:
-            with open(schema_path, "r") as f:
-                schema_sql = f.read()
-            conn.executescript(schema_sql)
-
-    async def add_workflow(self, workflow: wtflow.Workflow) -> int:
+    async def add_workflow(self, workflow: wtflow.Workflow) -> None:
         async def add_node(cursor: sqlite3.Cursor, node: wtflow.Node, workflow_id: int) -> None:
             async def add_artifact(cursor: sqlite3.Cursor, artifact: wtflow.Artifact, node_id: int) -> None:
                 cursor.execute(
@@ -74,8 +65,6 @@ class Sqlite3DBService(DBServiceInterface):
             await add_node(cursor, workflow.root, workflow_id)
 
             conn.commit()
-
-        return workflow_id
 
     async def end_workflow(self, workflow: wtflow.Workflow, result: int) -> None:
         workflow_id = self._workflows_id[workflow]

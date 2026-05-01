@@ -11,12 +11,8 @@ class Engine:
         self.config = config or Config()
         self.servicer = Servicer.from_config(self.config)
 
-    async def init_workflow(self, workflow: Workflow) -> int:
-        return await self.servicer.db_service.add_workflow(workflow)
-
     async def run_workflow(self, workflow: Workflow) -> int:
-        await self.servicer.db_service.create_tables()
-        await self.init_workflow(workflow)
+        await self.servicer.db_service.add_workflow(workflow)
         result = await self.execute_workflow(workflow)
         await self.servicer.db_service.end_workflow(workflow, result)
         return result
