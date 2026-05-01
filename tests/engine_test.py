@@ -1,4 +1,6 @@
+import sqlite3
 import time
+from contextlib import closing
 
 import pytest
 
@@ -7,6 +9,43 @@ from wtflow.infra.engine import Engine
 from wtflow.infra.executors import NodeResult
 from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Workflow
+
+schema_sql = """\
+CREATE TABLE IF NOT EXISTS workflows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    result INTEGER NULL,
+    name TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS nodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    command TEXT NULL,
+    workflow_id TEXT NOT NULL,
+    FOREIGN KEY (workflow_id) REFERENCES workflows (id) ON DELETE CASCADE
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS artifacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    node_id INTEGER NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS executions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    start_at TEXT NULL,
+    end_at TEXT NULL,
+    result INTEGER NULL,
+    node_id INTEGER NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+) STRICT;
+
+-- Indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_nodes_workflow_id ON nodes (workflow_id);
+CREATE INDEX IF NOT EXISTS idx_executions_node_id ON executions (node_id);
+"""
 
 
 @pytest.fixture()
@@ -18,7 +57,10 @@ def data_dir(tmp_path_factory):
 @pytest.fixture()
 def db_config(data_dir):
     database_path = f"{data_dir}/test.db"
-    return Sqlite3Config(database_path=database_path)
+    config = Sqlite3Config(database_path=database_path)
+    with closing(sqlite3.connect(config.database_path)) as conn:
+        conn.executescript(schema_sql)
+    return config
 
 
 @pytest.fixture()

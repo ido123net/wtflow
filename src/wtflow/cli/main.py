@@ -92,7 +92,7 @@ async def _cmd_run(
     if dry_run:
 
         def _dict_factory(x: list[tuple[str, Any]]) -> dict[str, Any]:
-            return {k: v for k, v in x if v}
+            return {k: v for k, v in x if v and not k.startswith("_")}
 
         print(json.dumps([asdict(workflow, dict_factory=_dict_factory) for workflow in wfs], indent=2))
         return 0
