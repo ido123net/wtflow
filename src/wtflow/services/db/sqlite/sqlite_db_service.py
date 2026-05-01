@@ -14,8 +14,8 @@ class Sqlite3DBService(DBServiceInterface):
     def __init__(self, database_path: str | Path) -> None:
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        self._workflows_id: dict[wtflow.Workflow, int] = {}
-        self._nodes_id: dict[wtflow.Node, int] = {}
+        self._workflows_id: dict[wtflow.TreeWorkflow, int] = {}
+        self._nodes_id: dict[wtflow.TreeNode, int] = {}
 
     @contextmanager
     def _get_connection(self) -> Generator[sqlite3.Connection]:
@@ -28,8 +28,8 @@ class Sqlite3DBService(DBServiceInterface):
     def _adapt_datetime(dt: datetime) -> str:
         return dt.isoformat()
 
-    async def add_workflow(self, workflow: wtflow.Workflow) -> None:
-        async def add_node(cursor: sqlite3.Cursor, node: wtflow.Node, workflow_id: int) -> None:
+    async def add_workflow(self, workflow: wtflow.TreeWorkflow) -> None:
+        async def add_node(cursor: sqlite3.Cursor, node: wtflow.TreeNode, workflow_id: int) -> None:
             async def add_artifact(cursor: sqlite3.Cursor, artifact: wtflow.Artifact, node_id: int) -> None:
                 cursor.execute(
                     "INSERT INTO artifacts (name, node_id) VALUES (?, ?)",
@@ -66,7 +66,7 @@ class Sqlite3DBService(DBServiceInterface):
 
             conn.commit()
 
-    async def end_workflow(self, workflow: wtflow.Workflow, result: int) -> None:
+    async def end_workflow(self, workflow: wtflow.TreeWorkflow, result: int) -> None:
         workflow_id = self._workflows_id[workflow]
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -77,7 +77,7 @@ class Sqlite3DBService(DBServiceInterface):
             )
             conn.commit()
 
-    async def start_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
+    async def start_execution(self, workflow: wtflow.TreeWorkflow, node: wtflow.TreeNode) -> None:
         with self._get_connection() as conn:
             cursor = conn.cursor()
 
@@ -88,7 +88,9 @@ class Sqlite3DBService(DBServiceInterface):
 
             conn.commit()
 
-    async def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: int | None = None) -> None:
+    async def end_execution(
+        self, workflow: wtflow.TreeWorkflow, node: wtflow.TreeNode, result: int | None = None
+    ) -> None:
         with self._get_connection() as conn:
             cursor = conn.cursor()
 

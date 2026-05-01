@@ -7,8 +7,8 @@ import pytest
 from wtflow.config import Config, LocalStorageConfig, Sqlite3Config
 from wtflow.infra.engine import Engine
 from wtflow.infra.executors import NodeResult
-from wtflow.infra.nodes import Node
-from wtflow.infra.workflow import Workflow
+from wtflow.infra.nodes import TreeNode
+from wtflow.infra.workflow import TreeWorkflow
 
 schema_sql = """\
 CREATE TABLE IF NOT EXISTS workflows (
@@ -70,17 +70,17 @@ def local_storage_config(data_dir):
 
 @pytest.mark.asyncio
 async def test_run():
-    wf = Workflow(
+    wf = TreeWorkflow(
         name="test run",
-        root=Node(
+        root=TreeNode(
             name="Root Node",
             children=[
-                Node(name="Node 1", command='echo "Hello 1"'),
-                Node(
+                TreeNode(name="Node 1", command='echo "Hello 1"'),
+                TreeNode(
                     name="Node 2",
                     children=[
-                        Node(name="Node 2.1", command='echo "World 2.1"'),
-                        Node(name="Node 2.2", command='echo "World 2.2"'),
+                        TreeNode(name="Node 2.1", command='echo "World 2.1"'),
+                        TreeNode(name="Node 2.2", command='echo "World 2.2"'),
                     ],
                 ),
             ],
@@ -92,9 +92,9 @@ async def test_run():
 
 @pytest.mark.asyncio
 async def test_fail_run(capfd):
-    wf = Workflow(
+    wf = TreeWorkflow(
         name="test fail run",
-        root=Node(
+        root=TreeNode(
             name="fail node",
             command="command-not-exist",
         ),
@@ -107,21 +107,21 @@ async def test_fail_run(capfd):
 
 @pytest.mark.asyncio
 async def test_stop_on_failure(capfdbinary):
-    wf = Workflow(
+    wf = TreeWorkflow(
         name="test stop on failure",
-        root=Node(
+        root=TreeNode(
             name="Root Node",
             children=[
-                Node(name="Node 1", command='echo "Hello 1"'),
-                Node(
+                TreeNode(name="Node 1", command='echo "Hello 1"'),
+                TreeNode(
                     name="Node 2",
                     children=[
-                        Node(name="Node 2.1", command='echo "World 2.1"'),
-                        Node(name="Node 2.2", command="command-not-exist"),
-                        Node(name="Node 2.3", command='echo "EXISTS" && sleep 1 && echo "NOPE"'),
+                        TreeNode(name="Node 2.1", command='echo "World 2.1"'),
+                        TreeNode(name="Node 2.2", command="command-not-exist"),
+                        TreeNode(name="Node 2.3", command='echo "EXISTS" && sleep 1 && echo "NOPE"'),
                     ],
                 ),
-                Node(name="Node 3", command='echo "Hello 3"'),
+                TreeNode(name="Node 3", command='echo "Hello 3"'),
             ],
         ),
     )
@@ -134,9 +134,9 @@ async def test_stop_on_failure(capfdbinary):
 
 @pytest.mark.asyncio
 async def test_timeout_node(capfdbinary):
-    wf = Workflow(
+    wf = TreeWorkflow(
         name="test timeout node",
-        root=Node(
+        root=TreeNode(
             name="Root Node",
             command="echo 'Hello' && sleep 1 && echo 'World'",
             timeout=0.1,
@@ -155,12 +155,12 @@ async def test_timeout_node(capfdbinary):
 @pytest.mark.asyncio
 async def test_with_db_config(db_config):
     config = Config(database=db_config)
-    wf = Workflow(
+    wf = TreeWorkflow(
         name="test with db config",
-        root=Node(
+        root=TreeNode(
             name="Root Node",
             children=[
-                Node(name="Node 1", command="echo 'Hello'"),
+                TreeNode(name="Node 1", command="echo 'Hello'"),
             ],
         ),
     )
@@ -171,12 +171,12 @@ async def test_with_db_config(db_config):
 @pytest.mark.asyncio
 async def test_with_storage_config(local_storage_config, data_dir):
     config = Config(storage=local_storage_config)
-    wf = Workflow(
+    wf = TreeWorkflow(
         name="test no db",
-        root=Node(
+        root=TreeNode(
             name="Root Node",
             children=[
-                Node(name="Node 1", command="echo 'Hello' && echo 'world'"),
+                TreeNode(name="Node 1", command="echo 'Hello' && echo 'world'"),
             ],
         ),
     )
@@ -190,12 +190,12 @@ async def test_with_storage_config(local_storage_config, data_dir):
 @pytest.mark.asyncio
 async def test_with_db_and_storage_config(db_config, local_storage_config):
     config = Config(database=db_config, storage=local_storage_config)
-    wf = Workflow(
+    wf = TreeWorkflow(
         name="test with db",
-        root=Node(
+        root=TreeNode(
             name="Root Node",
             children=[
-                Node(name="Node 1", command="echo 'Hello'"),
+                TreeNode(name="Node 1", command="echo 'Hello'"),
             ],
         ),
     )

@@ -13,7 +13,7 @@ import wtflow
 
 @wtflow.wf(name="hello-world")
 def workflow_1():
-    return wtflow.Node(
+    return wtflow.TreeNode(
         name="Root Node",
         command="echo 'Hello, World!'",
     )
@@ -21,7 +21,7 @@ def workflow_1():
 @wtflow.wf
 def hello_world2():
     return [
-        wtflow.Node(
+        wtflow.TreeNode(
             name=f"hello-world-{x}",
             command="echo hello world",
         )
@@ -41,11 +41,11 @@ import wtflow
 
 @wtflow.wf(name="test_wf")
 def _():
-    return wtflow.Node(name="")
+    return wtflow.TreeNode(name="")
 
 @wtflow.wf(name="test_wf")
 def _():
-    return wtflow.Node(name="")
+    return wtflow.TreeNode(name="")
 """)
     return p
 
@@ -88,12 +88,12 @@ import wtflow
 
 @wtflow.wf
 def run_pytest():
-    return wtflow.Workflow(
+    return wtflow.TreeWorkflow(
         name="pytest",
-        root=wtflow.Node(
+        root=wtflow.TreeNode(
             name="testing supported versions",
             children=[
-                wtflow.Node(
+                wtflow.TreeNode(
                     name=f"pytest-{ver}",
                     command=f"uv run -p{ver} pytest --cov",
                 )

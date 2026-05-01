@@ -13,7 +13,7 @@ import wtflow
 
 @wtflow.wf(name="hello-world")
 def workflow_1():
-    return wtflow.Node(
+    return wtflow.TreeNode(
         name="Root Node",
         command="echo 'Hello, World!'",
     )
@@ -21,7 +21,7 @@ def workflow_1():
 
 @wtflow.wf
 def workflow_2():
-    return wtflow.Node(
+    return wtflow.TreeNode(
         name="workflow-2",
         command="echo 'Workflow 2'",
     )
