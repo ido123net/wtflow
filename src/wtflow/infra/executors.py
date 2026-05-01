@@ -8,8 +8,8 @@ from enum import IntEnum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from wtflow.infra.nodes import Node
-    from wtflow.infra.workflow import Workflow
+    from wtflow.infra.nodes import TreeNode
+    from wtflow.infra.workflow import TreeWorkflow
     from wtflow.services.servicer import Servicer
 
 logger = logging.getLogger(__name__)
@@ -26,8 +26,8 @@ class NodeResult(IntEnum):
 class NodeExecutor:
     def __init__(
         self,
-        workflow: Workflow,
-        node: Node,
+        workflow: TreeWorkflow,
+        node: TreeNode,
         servicer: Servicer,
     ) -> None:
         self.workflow = workflow

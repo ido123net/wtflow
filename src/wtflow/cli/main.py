@@ -10,7 +10,7 @@ from typing import Any, Sequence
 from wtflow.config import Config
 from wtflow.discover import discover_workflows
 from wtflow.infra.engine import Engine
-from wtflow.infra.workflow import Workflow
+from wtflow.infra.workflow import TreeWorkflow
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -57,7 +57,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise NotImplementedError
 
 
-def _cmd_list(workflow_dict: dict[str, Workflow]) -> int:
+def _cmd_list(workflow_dict: dict[str, TreeWorkflow]) -> int:
     if not workflow_dict:
         print("No workflows found.")
         return 0
@@ -70,7 +70,7 @@ def _cmd_list(workflow_dict: dict[str, Workflow]) -> int:
 
 
 async def _cmd_run(
-    workflow_dict: dict[str, Workflow],
+    workflow_dict: dict[str, TreeWorkflow],
     workflow_name: str | None = None,
     config: Config | None = None,
     dry_run: bool = False,
