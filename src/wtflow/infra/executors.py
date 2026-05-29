@@ -18,9 +18,8 @@ logger = logging.getLogger(__name__)
 class NodeResult(IntEnum):
     SUCCESS = 0
     FAIL = 1
-    CHILD_FAILED = 2
-    TIMEOUT = 3
-    CANCEL = 4
+    TIMEOUT = 2
+    CANCEL = 3
 
 
 class NodeExecutor:
