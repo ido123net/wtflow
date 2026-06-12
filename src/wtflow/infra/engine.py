@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import signal
 from enum import IntEnum
 from graphlib import TopologicalSorter
 
 from wtflow.config import Config
-from wtflow.infra.executors import NodeExecutor, NodeResult
+from wtflow.infra.artifact import Artifact
 from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Workflow
 from wtflow.services.servicer import Servicer
+from wtflow.services.storage.storage_service import StorageServiceInterface
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +20,48 @@ logger = logging.getLogger(__name__)
 class ExitCode(IntEnum):
     SUCCESS = 0
     FAIL = 1
+
+
+class NodeResult(IntEnum):
+    SUCCESS = 0
+    FAIL = 1
+    TIMEOUT = 2
+    CANCEL = 3
+
+
+async def _wait_process(process: asyncio.subprocess.Process, timeout: float | None) -> NodeResult:
+    try:
+        result = await asyncio.wait_for(process.wait(), timeout)
+        return NodeResult.FAIL if result else NodeResult.SUCCESS
+    except asyncio.TimeoutError:
+        return NodeResult.TIMEOUT
+    except asyncio.CancelledError:
+        return NodeResult.CANCEL
+    finally:
+        if process.returncode is None:
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+        await process.wait()
+
+
+async def _start_process(command: str) -> asyncio.subprocess.Process:
+    return await asyncio.create_subprocess_shell(
+        command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        start_new_session=True,
+    )
+
+
+async def _read_stream(
+    storage_service: StorageServiceInterface,
+    workflow: Workflow,
+    node: Node,
+    stream: asyncio.StreamReader,
+    artifact: Artifact,
+) -> None:
+    with storage_service.open_artifact(workflow, node, artifact) as f:
+        while data := await stream.readline():
+            f.write(data)
 
 
 class Engine:
@@ -45,10 +90,22 @@ class Engine:
         return ExitCode.SUCCESS
 
     async def execute_node(self, workflow: Workflow, node: Node, ts: TopologicalSorter[Node]) -> NodeResult:
-        executor = NodeExecutor(workflow, node, self.servicer.storage_service)
+        if not node.command:
+            ts.done(node)
+            return NodeResult.SUCCESS
+
         logger.debug(f"Start execution of {node.name!r}")
         await self.servicer.db_service.start_execution(workflow, node)
-        result = await executor.execute_command(node.command)
+        process = await _start_process(node.command)
+        assert process.stdout and process.stderr
+        stdout_task = asyncio.create_task(
+            _read_stream(self.servicer.storage_service, workflow, node, process.stdout, node.stdout_artifact)
+        )
+        stderr_task = asyncio.create_task(
+            _read_stream(self.servicer.storage_service, workflow, node, process.stderr, node.stderr_artifact)
+        )
+        result, *_ = await asyncio.gather(_wait_process(process, node.timeout), stdout_task, stderr_task)
+
         logger.debug(f"End execution of {node.name!r}")
         logger.debug(f"Node {node.name!r} {result = }")
         await self.servicer.db_service.end_execution(workflow, node, result)

@@ -25,8 +25,7 @@ class StorageServiceInterface(BaseService):
         self,
         workflow: wtflow.Workflow,
         node: wtflow.Node,
-        name: str,
-        file_type: str = "txt",
+        artifact: wtflow.Artifact,
     ) -> AbstractContextManager[ArtifactWriter]:
         raise NotImplementedError
 
@@ -48,15 +47,14 @@ class NoStorageService(StorageServiceInterface):
         self,
         workflow: wtflow.Workflow,
         node: wtflow.Node,
-        name: str,
-        file_type: str = "txt",
+        artifact: wtflow.Artifact,
     ) -> Generator[StreamArtifactWriter, None, None]:
-        if name == "stdout":
+        if artifact.name == "stdout":
             writer = StreamArtifactWriter(sys.stdout.buffer)
-        elif name == "stderr":
+        elif artifact.name == "stderr":
             writer = StreamArtifactWriter(sys.stderr.buffer)
         else:
-            raise NotImplementedError(f"Artifact {name} is not supported in {self.__class__.__name__}")
+            raise NotImplementedError(f"Artifact {artifact.name} is not supported in {self.__class__.__name__}")
         try:
             yield writer
         finally:

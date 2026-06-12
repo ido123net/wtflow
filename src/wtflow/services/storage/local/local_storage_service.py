@@ -1,5 +1,5 @@
 import pathlib
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from io import BufferedWriter
 from typing import Generator
 
@@ -45,12 +45,8 @@ class LocalStorageService(StorageServiceInterface):
         self,
         workflow: wtflow.Workflow,
         node: wtflow.Node,
-        name: str,
-        file_type: str = "txt",
+        artifact: wtflow.Artifact,
     ) -> Generator[LocalArtifactWriter, None, None]:
-        path = self._get_path(workflow, node, name, file_type)
-        writer = LocalArtifactWriter(path)
-        try:
+        path = self._get_path(workflow, node, artifact.name, artifact.file_type)
+        with closing(LocalArtifactWriter(path)) as writer:
             yield writer
-        finally:
-            writer.close()
