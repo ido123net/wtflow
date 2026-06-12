@@ -5,8 +5,7 @@ from contextlib import closing
 import pytest
 
 from wtflow.config import Config, LocalStorageConfig, Sqlite3Config
-from wtflow.infra.engine import Engine
-from wtflow.infra.executors import NodeResult
+from wtflow.infra.engine import Engine, ExitCode
 from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Workflow
 
@@ -100,7 +99,7 @@ async def test_fail_run(capfd):
         ),
     )
     engine = Engine()
-    assert await engine.run_workflow(wf) == NodeResult.FAIL
+    assert await engine.run_workflow(wf) == ExitCode.FAIL
     _, err = capfd.readouterr()
     assert "not found" in err
 
@@ -126,7 +125,7 @@ async def test_stop_on_failure(capfdbinary):
         ),
     )
     engine = Engine(config=Config())
-    assert await engine.run_workflow(wf) == NodeResult.CHILD_FAILED
+    assert await engine.run_workflow(wf) == ExitCode.FAIL
     out, _ = capfdbinary.readouterr()
     assert b"EXISTS" in out
     assert b"NOPE" not in out
@@ -144,7 +143,7 @@ async def test_timeout_node(capfdbinary):
     )
     engine = Engine(Config())
     start_time = time.perf_counter()
-    assert await engine.run_workflow(wf) == NodeResult.TIMEOUT
+    assert await engine.run_workflow(wf) == ExitCode.FAIL
     elapsed = time.perf_counter() - start_time
     assert elapsed < 0.2
     stdout, stderr = capfdbinary.readouterr()

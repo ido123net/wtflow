@@ -16,4 +16,16 @@ class Node:
 
     @property
     def all_artifacts(self) -> set[Artifact]:
-        return set(self.artifacts) | {Artifact("stdout"), Artifact("stderr")}
+        return set(self.artifacts) | self.stream_artifact
+
+    @property
+    def stream_artifact(self) -> set[Artifact]:
+        return {self.stdout_artifact, self.stderr_artifact}
+
+    @property
+    def stdout_artifact(self) -> Artifact:
+        return Artifact("stdout")
+
+    @property
+    def stderr_artifact(self) -> Artifact:
+        return Artifact("stderr")
