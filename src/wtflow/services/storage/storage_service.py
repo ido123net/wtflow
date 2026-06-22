@@ -23,7 +23,7 @@ class StorageServiceInterface(BaseService):
     @abstractmethod
     def open_artifact(
         self,
-        workflow: wtflow.Workflow,
+        workflow: wtflow.Graph,
         node: wtflow.Node,
         artifact: wtflow.Artifact,
     ) -> AbstractContextManager[ArtifactWriter]:
@@ -45,7 +45,7 @@ class NoStorageService(StorageServiceInterface):
     @contextmanager
     def open_artifact(
         self,
-        workflow: wtflow.Workflow,
+        workflow: wtflow.Graph,
         node: wtflow.Node,
         artifact: wtflow.Artifact,
     ) -> Generator[StreamArtifactWriter, None, None]:

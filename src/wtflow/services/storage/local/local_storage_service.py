@@ -31,7 +31,7 @@ class LocalStorageService(StorageServiceInterface):
 
     def _get_path(
         self,
-        workflow: wtflow.Workflow,
+        workflow: wtflow.Graph,
         node: wtflow.Node,
         name: str,
         file_type: str,
@@ -43,7 +43,7 @@ class LocalStorageService(StorageServiceInterface):
     @contextmanager
     def open_artifact(
         self,
-        workflow: wtflow.Workflow,
+        workflow: wtflow.Graph,
         node: wtflow.Node,
         artifact: wtflow.Artifact,
     ) -> Generator[LocalArtifactWriter, None, None]:

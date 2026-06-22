@@ -3,13 +3,14 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from wtflow.infra.nodes import Node
+from wtflow.infra.nodes import Node, TreeNode
 
 
-@dataclass
+@dataclass(frozen=True)
 class Graph:
-    nodes: set[Node] = field(default_factory=set)
-    edges: set[tuple[Node, Node]] = field(default_factory=set)
+    name: str
+    nodes: tuple[Node, ...] = field(default_factory=tuple)
+    edges: tuple[tuple[Node, Node], ...] = field(default_factory=tuple)
 
     def items(self) -> set[tuple[Node, tuple[Node, ...]]]:
         predecessors = defaultdict[Node, set[Node]](set)
@@ -19,19 +20,20 @@ class Graph:
 
 
 @dataclass(frozen=True)
-class Workflow:
+class Tree:
     name: str
-    root: Node
+    root: TreeNode
 
-    def as_graph(workflow: Workflow) -> Graph:
-        graph = Graph()
+    def as_graph(self) -> Graph:
+        nodes = set()
+        edges = set()
 
-        def _add_node(node: Node, parent: Node | None = None) -> Graph:
-            graph.nodes.add(node)
+        def _add_node(node: TreeNode, parent: TreeNode | None = None) -> None:
+            nodes.add(node)
             if parent is not None:
-                graph.edges.add((node, parent))
+                edges.add((node, parent))
             for child in node.children:
                 _add_node(child, node)
-            return graph
 
-        return _add_node(workflow.root)
+        _add_node(self.root)
+        return Graph(self.name, nodes=tuple(nodes), edges=tuple(edges))

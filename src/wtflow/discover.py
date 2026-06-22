@@ -1,11 +1,11 @@
 from pathlib import Path
 
 from wtflow.decorator import _ALL_WORKFLOWS
-from wtflow.infra.workflow import Workflow
+from wtflow.infra.workflow import Tree
 from wtflow.utils import import_file
 
 
-def discover_workflows(path: Path | str) -> dict[str, Workflow]:
+def discover_workflows(path: Path | str) -> dict[str, Tree]:
     path = Path(path)
 
     if not path.exists():
