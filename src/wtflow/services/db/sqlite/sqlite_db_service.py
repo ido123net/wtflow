@@ -8,6 +8,7 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, ClassVar, Generator, Protocol
+from uuid import UUID
 
 import wtflow
 from wtflow.infra.info import ExecutionInfo, RunInfo
@@ -31,11 +32,10 @@ class Sqlite3DBService(DBService):
     def __init__(self, database_path: str | Path) -> None:
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
-
-        self._run_ids: dict[int, int] = {}
-        self._execution_ids: dict[int, int] = {}
-
         self._create_tables()
+
+        self._execution_ids: dict[UUID, int] = {}
+        self._run_ids: dict[UUID, int] = {}
 
     @contextmanager
     def _get_connection(self) -> Generator[sqlite3.Connection]:
@@ -123,106 +123,110 @@ class Sqlite3DBService(DBService):
 
             conn.commit()
 
-    async def update_run_info(self, run_info: RunInfo) -> None:
+    async def start_run(self, run_info: RunInfo) -> None:
         graph_digest = _digest(run_info.graph)
-        key = id(run_info)
-
         system_info = run_info.system_info
 
         with self._get_connection() as conn:
-            run_id = self._run_ids.get(key)
+            cursor = conn.execute(
+                """
+                INSERT INTO runs (
+                    graph_digest,
+                    created_at,
+                    start_time,
+                    end_time,
+                    hostname,
+                    os_name,
+                    os_release,
+                    os_version,
+                    machine,
+                    cpu_count
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    graph_digest,
+                    run_info.created_at,
+                    run_info.start_time,
+                    run_info.end_time,
+                    system_info.hostname,
+                    system_info.os_name,
+                    system_info.os_release,
+                    system_info.os_version,
+                    system_info.machine,
+                    system_info.cpu_count,
+                ),
+            )
+            conn.commit()
+            assert cursor.lastrowid
+            self._run_ids[run_info.run_id] = cursor.lastrowid
 
-            if run_id is None:
-                cursor = conn.execute(
-                    """
-                    INSERT INTO runs (
-                        graph_digest,
-                        created_at,
-                        hostname,
-                        os_name,
-                        os_release,
-                        os_version,
-                        machine,
-                        cpu_count
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        graph_digest,
-                        run_info.created_at,
-                        system_info.hostname,
-                        system_info.os_name,
-                        system_info.os_release,
-                        system_info.os_version,
-                        system_info.machine,
-                        system_info.cpu_count,
-                    ),
-                )
-                lastrowid = cursor.lastrowid
-                assert lastrowid
-                self._run_ids[key] = lastrowid
-            else:
-                conn.execute(
-                    """
-                    UPDATE runs
-                    SET
-                        start_time = ?,
-                        end_time = ?
-                    WHERE id = ?
-                    """,
-                    (
-                        run_info.start_time,
-                        run_info.end_time,
-                        run_id,
-                    ),
-                )
+    async def finish_run(self, run_info: RunInfo) -> None:
+        _id = self._run_ids.pop(run_info.run_id)
+        with self._get_connection() as conn:
+            conn.execute(
+                """
+                UPDATE runs
+                SET
+                    start_time = ?,
+                    end_time = ?
+                WHERE id = ?
+                """,
+                (
+                    run_info.start_time,
+                    run_info.end_time,
+                    _id,
+                ),
+            )
 
             conn.commit()
 
-    async def update_execution_info(self, execution_info: ExecutionInfo) -> None:
-        graph_digest = _digest(execution_info.graph)
+    async def start_execution(self, run_info: RunInfo, execution_info: ExecutionInfo) -> None:
         node_digest = _digest(execution_info.node)
-        key = id(execution_info)
+        _run_id = self._run_ids[run_info.run_id]
 
         with self._get_connection() as conn:
-            execution_id = self._execution_ids.get(key)
+            curser = conn.execute(
+                """
+                INSERT INTO executions (
+                    run_id,
+                    node_digest,
+                    start_time,
+                    end_time
+                )
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    _run_id,
+                    node_digest,
+                    execution_info.start_time,
+                    execution_info.end_time,
+                ),
+            )
+            conn.commit()
+            assert curser.lastrowid
+            self._execution_ids[execution_info.execution_id] = curser.lastrowid
 
-            if execution_id is None:
-                cursor = conn.execute(
-                    """
-                    INSERT INTO executions (
-                        graph_digest,
-                        node_digest,
-                        start_time,
-                        end_time
-                    )
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (
-                        graph_digest,
-                        node_digest,
-                        execution_info.start_time,
-                        execution_info.end_time,
-                    ),
-                )
-                lastrowid = cursor.lastrowid
-                assert lastrowid
-                self._execution_ids[key] = lastrowid
-            else:
-                conn.execute(
-                    """
-                    UPDATE executions
-                    SET
-                        start_time = ?,
-                        end_time = ?
-                    WHERE id = ?
-                    """,
-                    (
-                        execution_info.start_time,
-                        execution_info.end_time,
-                        execution_id,
-                    ),
-                )
+    async def finish_execution(self, run_info: RunInfo, execution_info: ExecutionInfo) -> None:
+        _id = self._execution_ids.pop(execution_info.execution_id)
+        _run_id = self._run_ids[run_info.run_id]
+
+        with self._get_connection() as conn:
+            conn.execute(
+                """
+                UPDATE executions
+                SET
+                    start_time = ?,
+                    end_time = ?
+                WHERE id = ? AND run_id = ?
+                """,
+                (
+                    execution_info.start_time,
+                    execution_info.end_time,
+                    _id,
+                    _run_id,
+                ),
+            )
 
             conn.commit()
 
@@ -302,19 +306,22 @@ class Sqlite3DBService(DBService):
 
                 CREATE TABLE IF NOT EXISTS executions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    graph_digest TEXT NOT NULL,
+                    run_id INTEGER NOT NULL,
                     node_digest TEXT NOT NULL,
                     start_time TEXT,
                     end_time TEXT,
 
-                    FOREIGN KEY (graph_digest)
-                        REFERENCES graphs(digest)
-                        ON DELETE RESTRICT,
+                    FOREIGN KEY (run_id)
+                        REFERENCES runs(id)
+                        ON DELETE CASCADE,
 
                     FOREIGN KEY (node_digest)
                         REFERENCES nodes(digest)
                         ON DELETE RESTRICT
                 );
+
+                CREATE INDEX IF NOT EXISTS executions_run_id_idx
+                    ON executions(run_id);
                 """
             )
             conn.commit()

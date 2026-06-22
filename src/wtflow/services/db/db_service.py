@@ -13,11 +13,19 @@ class DBService(BaseService):
         raise NotImplementedError
 
     @abstractmethod
-    async def update_run_info(self, run_info: RunInfo) -> None:
+    async def start_run(self, run_info: RunInfo) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def update_execution_info(self, execution_info: ExecutionInfo) -> None:
+    async def finish_run(self, run_info: RunInfo) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def start_execution(self, run_info: RunInfo, execution_info: ExecutionInfo) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def finish_execution(self, run_info: RunInfo, execution_info: ExecutionInfo) -> None:
         raise NotImplementedError
 
 
@@ -25,8 +33,14 @@ class NoDBService(DBService):
     async def save_graph(self, graph: wtflow.Graph) -> None:
         pass
 
-    async def update_run_info(self, run_info: RunInfo) -> None:
+    async def start_run(self, run_info: RunInfo) -> None:
         pass
 
-    async def update_execution_info(self, execution_info: ExecutionInfo) -> None:
+    async def finish_run(self, run_info: RunInfo) -> None:
+        pass
+
+    async def start_execution(self, run_info: RunInfo, execution_info: ExecutionInfo) -> None:
+        pass
+
+    async def finish_execution(self, run_info: RunInfo, execution_info: ExecutionInfo) -> None:
         pass

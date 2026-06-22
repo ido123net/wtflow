@@ -4,22 +4,13 @@ import datetime
 import os
 import platform
 import socket
-from collections.abc import Generator
-from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Protocol, TypeVar
+from typing import TYPE_CHECKING
+from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
     from wtflow.infra.nodes import Node
     from wtflow.infra.workflow import Graph
-
-
-class _SupportTime(Protocol):
-    start_time: datetime.datetime | None
-    end_time: datetime.datetime | None
-
-
-T = TypeVar("T", bound=_SupportTime)
 
 
 @dataclass(frozen=True)
@@ -36,27 +27,28 @@ def _utcnow() -> datetime.datetime:
     return datetime.datetime.now(tz=datetime.timezone.utc)
 
 
-@dataclass
-class RunInfo:
-    graph: Graph
-    created_at: datetime.datetime = field(default_factory=_utcnow)
+@dataclass(kw_only=True)
+class Info:
     start_time: datetime.datetime | None = None
     end_time: datetime.datetime | None = None
+
+    def start(self) -> None:
+        self.start_time = _utcnow()
+
+    def end(self) -> None:
+        self.end_time = _utcnow()
+
+
+@dataclass(kw_only=True)
+class RunInfo(Info):
+    graph: Graph
+    run_id: UUID = field(default_factory=uuid4)
+    created_at: datetime.datetime = field(default_factory=_utcnow)
     system_info: SystemInfo = field(default_factory=SystemInfo)
 
 
-@dataclass
-class ExecutionInfo:
+@dataclass(kw_only=True)
+class ExecutionInfo(Info):
     graph: Graph
     node: Node
-    start_time: datetime.datetime | None = None
-    end_time: datetime.datetime | None = None
-
-
-@contextmanager
-def execute(support_time: T) -> Generator[T]:
-    support_time.start_time = _utcnow()
-    try:
-        yield support_time
-    finally:
-        support_time.end_time = _utcnow()
+    execution_id: UUID = field(default_factory=uuid4)

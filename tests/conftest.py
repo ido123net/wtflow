@@ -21,5 +21,4 @@ def db_config(data_dir):
     config = Sqlite3Config(database_path=database_path)
     db_service = config.create_db_service()
     assert isinstance(db_service, Sqlite3DBService)
-    db_service._create_tables()
     return config

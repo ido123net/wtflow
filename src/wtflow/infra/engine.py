@@ -9,7 +9,7 @@ from graphlib import TopologicalSorter
 
 from wtflow.config import Config
 from wtflow.infra.artifact import Artifact
-from wtflow.infra.info import ExecutionInfo, RunInfo, execute
+from wtflow.infra.info import ExecutionInfo, RunInfo
 from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Graph, Tree
 from wtflow.services.servicer import Servicer
@@ -69,8 +69,12 @@ class Executor:
     def __init__(self, graph: Graph, servicer: Servicer) -> None:
         self.graph = graph
         self.servicer = servicer
+        self.db_service = servicer.db_service
+        self.run_info = RunInfo(graph=graph)
 
     async def execute(self) -> ExitCode:
+        self.run_info.start()
+        await self.db_service.start_run(self.run_info)
         ts = TopologicalSorter(self.graph)
         ts.prepare()
         while ts.is_active():
@@ -81,15 +85,18 @@ class Executor:
                 if result:
                     _cancel_tasks(tasks)
                     return ExitCode.FAIL
+        self.run_info.end()
+        await self.db_service.finish_run(self.run_info)
         return ExitCode.SUCCESS
 
     async def execute_node(self, node: Node, ts: TopologicalSorter[Node]) -> NodeResult:
-        execution_info = ExecutionInfo(self.graph, node)
+        execution_info = ExecutionInfo(graph=self.graph, node=node)
+        execution_info.start()
+        await self.db_service.start_execution(self.run_info, execution_info)
         try:
-            with execute(execution_info):
-                await self.servicer.db_service.update_execution_info(execution_info)
-                result = await self._execute_node(node)
-            await self.servicer.db_service.update_execution_info(execution_info)
+            result = await self._execute_node(node)
+            execution_info.end()
+            await self.db_service.finish_execution(self.run_info, execution_info)
             return result
         finally:
             ts.done(node)
@@ -123,12 +130,8 @@ class Engine:
     async def run_workflow(self, workflow: Tree) -> int:
         graph = workflow.as_graph()
         await self.servicer.db_service.save_graph(graph)
-        run_info = RunInfo(graph)
-        with execute(run_info):
-            await self.servicer.db_service.update_run_info(run_info)
-            executor = Executor(graph, self.servicer)
-            result = await executor.execute()
-        await self.servicer.db_service.update_run_info(run_info)
+        executor = Executor(graph, self.servicer)
+        result = await executor.execute()
         return result
 
 
