@@ -7,7 +7,7 @@ from wtflow.infra.info import ExecutionInfo, RunInfo
 from wtflow.services.base_service import BaseService
 
 
-class DBServiceInterface(BaseService):
+class DBService(BaseService):
     @abstractmethod
     async def save_graph(self, graph: wtflow.Graph) -> None:
         raise NotImplementedError
@@ -21,7 +21,7 @@ class DBServiceInterface(BaseService):
         raise NotImplementedError
 
 
-class NoDBService(DBServiceInterface):
+class NoDBService(DBService):
     async def save_graph(self, graph: wtflow.Graph) -> None:
         pass
 

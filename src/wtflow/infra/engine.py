@@ -13,7 +13,7 @@ from wtflow.infra.info import ExecutionInfo, RunInfo, execute
 from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Graph, Tree
 from wtflow.services.servicer import Servicer
-from wtflow.services.storage.storage_service import StorageServiceInterface
+from wtflow.services.storage.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ async def _start_process(command: str) -> asyncio.subprocess.Process:
 
 
 async def _read_stream(
-    storage_service: StorageServiceInterface,
+    storage_service: StorageService,
     workflow: Graph,
     node: Node,
     stream: asyncio.StreamReader,

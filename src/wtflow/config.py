@@ -4,18 +4,18 @@ import pathlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
-from wtflow.services.db.db_service import DBServiceInterface, NoDBService
-from wtflow.services.storage.storage_service import NoStorageService, StorageServiceInterface
+from wtflow.services.db.db_service import DBService, NoDBService
+from wtflow.services.storage.storage_service import NoStorageService, StorageService
 
 
 class DatabaseConfig(ABC):
     @abstractmethod
-    def create_db_service(self) -> DBServiceInterface:
+    def create_db_service(self) -> DBService:
         return NotImplemented
 
 
 class NoDatabaseConfig(DatabaseConfig):
-    def create_db_service(self) -> DBServiceInterface:
+    def create_db_service(self) -> DBService:
         return NoDBService()
 
 
@@ -23,7 +23,7 @@ class NoDatabaseConfig(DatabaseConfig):
 class Sqlite3Config(DatabaseConfig):
     database_path: str
 
-    def create_db_service(self) -> DBServiceInterface:
+    def create_db_service(self) -> DBService:
         from wtflow.services.db.sqlite.sqlite_db_service import Sqlite3DBService
 
         return Sqlite3DBService(self.database_path)
@@ -31,12 +31,12 @@ class Sqlite3Config(DatabaseConfig):
 
 class StorageConfig(ABC):
     @abstractmethod
-    def create_storage_service(self) -> StorageServiceInterface:
+    def create_storage_service(self) -> StorageService:
         return NotImplemented
 
 
 class NoStorageConfig(StorageConfig):
-    def create_storage_service(self) -> StorageServiceInterface:
+    def create_storage_service(self) -> StorageService:
         return NoStorageService()
 
 
@@ -44,7 +44,7 @@ class NoStorageConfig(StorageConfig):
 class LocalStorageConfig(StorageConfig):
     base_path: pathlib.Path
 
-    def create_storage_service(self) -> StorageServiceInterface:
+    def create_storage_service(self) -> StorageService:
         from wtflow.services.storage.local.local_storage_service import LocalStorageService
 
         return LocalStorageService(base_path=self.base_path)
