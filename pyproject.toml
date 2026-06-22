@@ -1,6 +1,6 @@
 [project]
 name = "wtflow"
-description = "Add your description here"
+description = "Asynchronous workflow runner"
 readme = "README.md"
 authors = [{ name = "Ido Frenkel", email = "ido123net@gmail.com" }]
 requires-python = ">=3.10"
