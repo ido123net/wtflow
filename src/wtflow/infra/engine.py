@@ -9,8 +9,9 @@ from graphlib import TopologicalSorter
 
 from wtflow.config import Config
 from wtflow.infra.artifact import Artifact
+from wtflow.infra.info import ExecutionInfo, RunInfo, execute
 from wtflow.infra.nodes import Node
-from wtflow.infra.workflow import Workflow
+from wtflow.infra.workflow import Graph, Tree
 from wtflow.services.servicer import Servicer
 from wtflow.services.storage.storage_service import StorageServiceInterface
 
@@ -54,7 +55,7 @@ async def _start_process(command: str) -> asyncio.subprocess.Process:
 
 async def _read_stream(
     storage_service: StorageServiceInterface,
-    workflow: Workflow,
+    workflow: Graph,
     node: Node,
     stream: asyncio.StreamReader,
     artifact: Artifact,
@@ -64,24 +65,17 @@ async def _read_stream(
             f.write(data)
 
 
-class Engine:
-    def __init__(self, config: Config | None = None) -> None:
-        self.config = config or Config()
-        self.servicer = Servicer.from_config(self.config)
+class Executor:
+    def __init__(self, graph: Graph, servicer: Servicer) -> None:
+        self.graph = graph
+        self.servicer = servicer
 
-    async def run_workflow(self, workflow: Workflow) -> int:
-        await self.servicer.db_service.add_workflow(workflow)
-        result = await self.execute_workflow(workflow)
-        await self.servicer.db_service.end_workflow(workflow, result)
-        return result
-
-    async def execute_workflow(self, workflow: Workflow) -> ExitCode:
-        graph = workflow.as_graph()
-        ts = TopologicalSorter(graph)
+    async def execute(self) -> ExitCode:
+        ts = TopologicalSorter(self.graph)
         ts.prepare()
         while ts.is_active():
             ready_nodes = ts.get_ready()
-            tasks = [asyncio.create_task(self.execute_node(workflow, node, ts)) for node in ready_nodes]
+            tasks = [asyncio.create_task(self.execute_node(node, ts)) for node in ready_nodes]
             for future_result in asyncio.as_completed(tasks):
                 result = await future_result
                 if result:
@@ -89,27 +83,52 @@ class Engine:
                     return ExitCode.FAIL
         return ExitCode.SUCCESS
 
-    async def execute_node(self, workflow: Workflow, node: Node, ts: TopologicalSorter[Node]) -> NodeResult:
-        if not node.command:
+    async def execute_node(self, node: Node, ts: TopologicalSorter[Node]) -> NodeResult:
+        execution_info = ExecutionInfo(self.graph, node)
+        try:
+            with execute(execution_info):
+                await self.servicer.db_service.update_execution_info(execution_info)
+                result = await self._execute_node(node)
+            await self.servicer.db_service.update_execution_info(execution_info)
+            return result
+        finally:
             ts.done(node)
+
+    async def _execute_node(self, node: Node) -> NodeResult:
+        if not node.command:
             return NodeResult.SUCCESS
 
-        logger.debug(f"Start execution of {node.name!r}")
-        await self.servicer.db_service.start_execution(workflow, node)
         process = await _start_process(node.command)
-        assert process.stdout and process.stderr
-        stdout_task = asyncio.create_task(
-            _read_stream(self.servicer.storage_service, workflow, node, process.stdout, node.stdout_artifact)
-        )
-        stderr_task = asyncio.create_task(
-            _read_stream(self.servicer.storage_service, workflow, node, process.stderr, node.stderr_artifact)
-        )
-        result, *_ = await asyncio.gather(_wait_process(process, node.timeout), stdout_task, stderr_task)
+        stream_tasks = [self._stream_task(node, process, artifact_name) for artifact_name in ("stdout", "stderr")]
+        result = await _wait_process(process, node.timeout)
+        await asyncio.gather(*stream_tasks)
+        return result
 
-        logger.debug(f"End execution of {node.name!r}")
-        logger.debug(f"Node {node.name!r} {result = }")
-        await self.servicer.db_service.end_execution(workflow, node, result)
-        ts.done(node)
+    def _stream_task(
+        self,
+        node: Node,
+        process: asyncio.subprocess.Process,
+        artifact_name: str,
+    ) -> asyncio.Task[None]:
+        artifact = Artifact(artifact_name)
+        stream: asyncio.StreamReader = getattr(process, artifact_name)
+        return asyncio.create_task(_read_stream(self.servicer.storage_service, self.graph, node, stream, artifact))
+
+
+class Engine:
+    def __init__(self, config: Config | None = None) -> None:
+        self.config = config or Config()
+        self.servicer = Servicer.from_config(self.config)
+
+    async def run_workflow(self, workflow: Tree) -> int:
+        graph = workflow.as_graph()
+        await self.servicer.db_service.save_graph(graph)
+        run_info = RunInfo(graph)
+        with execute(run_info):
+            await self.servicer.db_service.update_run_info(run_info)
+            executor = Executor(graph, self.servicer)
+            result = await executor.execute()
+        await self.servicer.db_service.update_run_info(run_info)
         return result
 
 

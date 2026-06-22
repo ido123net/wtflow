@@ -3,36 +3,30 @@ from __future__ import annotations
 from abc import abstractmethod
 
 import wtflow
+from wtflow.infra.info import ExecutionInfo, RunInfo
 from wtflow.services.base_service import BaseService
 
 
 class DBServiceInterface(BaseService):
     @abstractmethod
-    async def add_workflow(self, workflow: wtflow.Workflow) -> None:
+    async def save_graph(self, graph: wtflow.Graph) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def end_workflow(self, workflow: wtflow.Workflow, result: int) -> None:
+    async def update_run_info(self, run_info: RunInfo) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def start_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: int | None = None) -> None:
+    async def update_execution_info(self, execution_info: ExecutionInfo) -> None:
         raise NotImplementedError
 
 
 class NoDBService(DBServiceInterface):
-    async def add_workflow(self, workflow: wtflow.Workflow) -> None:
+    async def save_graph(self, graph: wtflow.Graph) -> None:
         pass
 
-    async def start_execution(self, workflow: wtflow.Workflow, node: wtflow.Node) -> None:
+    async def update_run_info(self, run_info: RunInfo) -> None:
         pass
 
-    async def end_execution(self, workflow: wtflow.Workflow, node: wtflow.Node, result: int | None = None) -> None:
-        pass
-
-    async def end_workflow(self, workflow: wtflow.Workflow, result: int) -> None:
+    async def update_execution_info(self, execution_info: ExecutionInfo) -> None:
         pass

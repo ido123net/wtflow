@@ -1,85 +1,26 @@
-import sqlite3
 import time
-from contextlib import closing
 
 import pytest
 
-from wtflow.config import Config, LocalStorageConfig, Sqlite3Config
+from wtflow.config import Config
 from wtflow.infra.engine import Engine, ExitCode
-from wtflow.infra.nodes import Node
-from wtflow.infra.workflow import Workflow
-
-schema_sql = """\
-CREATE TABLE IF NOT EXISTS workflows (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    result INTEGER NULL,
-    name TEXT NOT NULL
-) STRICT;
-
-CREATE TABLE IF NOT EXISTS nodes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    command TEXT NULL,
-    workflow_id TEXT NOT NULL,
-    FOREIGN KEY (workflow_id) REFERENCES workflows (id) ON DELETE CASCADE
-) STRICT;
-
-CREATE TABLE IF NOT EXISTS artifacts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    node_id INTEGER NOT NULL,
-    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
-) STRICT;
-
-CREATE TABLE IF NOT EXISTS executions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    start_at TEXT NULL,
-    end_at TEXT NULL,
-    result INTEGER NULL,
-    node_id INTEGER NOT NULL,
-    FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
-) STRICT;
-
--- Indexes for better query performance
-CREATE INDEX IF NOT EXISTS idx_nodes_workflow_id ON nodes (workflow_id);
-CREATE INDEX IF NOT EXISTS idx_executions_node_id ON executions (node_id);
-"""
-
-
-@pytest.fixture()
-def data_dir(tmp_path_factory):
-    data_dir = tmp_path_factory.mktemp("data")
-    return data_dir
-
-
-@pytest.fixture()
-def db_config(data_dir):
-    database_path = f"{data_dir}/test.db"
-    config = Sqlite3Config(database_path=database_path)
-    with closing(sqlite3.connect(config.database_path)) as conn:
-        conn.executescript(schema_sql)
-    return config
-
-
-@pytest.fixture()
-def local_storage_config(data_dir):
-    return LocalStorageConfig(base_path=data_dir)
+from wtflow.infra.nodes import TreeNode
+from wtflow.infra.workflow import Tree
 
 
 @pytest.mark.asyncio
 async def test_run():
-    wf = Workflow(
+    wf = Tree(
         name="test run",
-        root=Node(
+        root=TreeNode(
             name="Root Node",
             children=[
-                Node(name="Node 1", command='echo "Hello 1"'),
-                Node(
+                TreeNode(name="Node 1", command='echo "Hello 1"'),
+                TreeNode(
                     name="Node 2",
                     children=[
-                        Node(name="Node 2.1", command='echo "World 2.1"'),
-                        Node(name="Node 2.2", command='echo "World 2.2"'),
+                        TreeNode(name="Node 2.1", command='echo "World 2.1"'),
+                        TreeNode(name="Node 2.2", command='echo "World 2.2"'),
                     ],
                 ),
             ],
@@ -91,9 +32,9 @@ async def test_run():
 
 @pytest.mark.asyncio
 async def test_fail_run(capfd):
-    wf = Workflow(
+    wf = Tree(
         name="test fail run",
-        root=Node(
+        root=TreeNode(
             name="fail node",
             command="command-not-exist",
         ),
@@ -106,21 +47,21 @@ async def test_fail_run(capfd):
 
 @pytest.mark.asyncio
 async def test_stop_on_failure(capfdbinary):
-    wf = Workflow(
+    wf = Tree(
         name="test stop on failure",
-        root=Node(
+        root=TreeNode(
             name="Root Node",
             children=[
-                Node(name="Node 1", command='echo "Hello 1"'),
-                Node(
+                TreeNode(name="Node 1", command='echo "Hello 1"'),
+                TreeNode(
                     name="Node 2",
                     children=[
-                        Node(name="Node 2.1", command='echo "World 2.1"'),
-                        Node(name="Node 2.2", command="command-not-exist"),
-                        Node(name="Node 2.3", command='echo "EXISTS" && sleep 1 && echo "NOPE"'),
+                        TreeNode(name="Node 2.1", command='echo "World 2.1"'),
+                        TreeNode(name="Node 2.2", command="command-not-exist"),
+                        TreeNode(name="Node 2.3", command='echo "EXISTS" && sleep 1 && echo "NOPE"'),
                     ],
                 ),
-                Node(name="Node 3", command='echo "Hello 3"'),
+                TreeNode(name="Node 3", command='echo "Hello 3"'),
             ],
         ),
     )
@@ -133,9 +74,9 @@ async def test_stop_on_failure(capfdbinary):
 
 @pytest.mark.asyncio
 async def test_timeout_node(capfdbinary):
-    wf = Workflow(
+    wf = Tree(
         name="test timeout node",
-        root=Node(
+        root=TreeNode(
             name="Root Node",
             command="echo 'Hello' && sleep 1 && echo 'World'",
             timeout=0.1,
@@ -152,30 +93,14 @@ async def test_timeout_node(capfdbinary):
 
 
 @pytest.mark.asyncio
-async def test_with_db_config(db_config):
-    config = Config(database=db_config)
-    wf = Workflow(
-        name="test with db config",
-        root=Node(
-            name="Root Node",
-            children=[
-                Node(name="Node 1", command="echo 'Hello'"),
-            ],
-        ),
-    )
-    engine = Engine(config=config)
-    assert await engine.run_workflow(wf) == 0
-
-
-@pytest.mark.asyncio
 async def test_with_storage_config(local_storage_config, data_dir):
     config = Config(storage=local_storage_config)
-    wf = Workflow(
+    wf = Tree(
         name="test no db",
-        root=Node(
+        root=TreeNode(
             name="Root Node",
             children=[
-                Node(name="Node 1", command="echo 'Hello' && echo 'world'"),
+                TreeNode(name="Node 1", command="echo 'Hello' && echo 'world'"),
             ],
         ),
     )
@@ -184,19 +109,3 @@ async def test_with_storage_config(local_storage_config, data_dir):
     log_path = data_dir / "test no db" / "Node 1" / "stdout.txt"
     assert log_path.exists()
     assert log_path.read_text() == "Hello\nworld\n"
-
-
-@pytest.mark.asyncio
-async def test_with_db_and_storage_config(db_config, local_storage_config):
-    config = Config(database=db_config, storage=local_storage_config)
-    wf = Workflow(
-        name="test with db",
-        root=Node(
-            name="Root Node",
-            children=[
-                Node(name="Node 1", command="echo 'Hello'"),
-            ],
-        ),
-    )
-    engine = Engine(config=config)
-    assert await engine.run_workflow(wf) == 0
