@@ -3,14 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from wtflow.config import Config
-from wtflow.services.db.db_service import DBServiceInterface
-from wtflow.services.storage.storage_service import StorageServiceInterface
+from wtflow.services.db.db_service import DBService
+from wtflow.services.storage.storage_service import StorageService
 
 
 @dataclass
 class Servicer:
-    db_service: DBServiceInterface
-    storage_service: StorageServiceInterface
+    db_service: DBService
+    storage_service: StorageService
 
     @classmethod
     def from_config(cls, config: Config) -> Servicer:

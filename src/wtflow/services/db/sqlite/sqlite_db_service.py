@@ -11,7 +11,7 @@ from typing import Any, ClassVar, Generator, Protocol
 
 import wtflow
 from wtflow.infra.info import ExecutionInfo, RunInfo
-from wtflow.services.db.db_service import DBServiceInterface
+from wtflow.services.db.db_service import DBService
 
 
 class Dataclass(Protocol):
@@ -27,7 +27,7 @@ def _digest(node: Dataclass) -> str:
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
 
-class Sqlite3DBService(DBServiceInterface):
+class Sqlite3DBService(DBService):
     def __init__(self, database_path: str | Path) -> None:
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)

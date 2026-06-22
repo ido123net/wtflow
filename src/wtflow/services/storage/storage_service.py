@@ -19,7 +19,7 @@ class ArtifactWriter(ABC):
         raise NotImplementedError
 
 
-class StorageServiceInterface(BaseService):
+class StorageService(BaseService):
     @abstractmethod
     def open_artifact(
         self,
@@ -41,7 +41,7 @@ class StreamArtifactWriter(ArtifactWriter):
         pass
 
 
-class NoStorageService(StorageServiceInterface):
+class NoStorageService(StorageService):
     @contextmanager
     def open_artifact(
         self,

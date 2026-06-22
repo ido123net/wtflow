@@ -4,7 +4,7 @@ from io import BufferedWriter
 from typing import Generator
 
 import wtflow
-from wtflow.services.storage.storage_service import ArtifactWriter, StorageServiceInterface
+from wtflow.services.storage.storage_service import ArtifactWriter, StorageService
 
 
 class LocalArtifactWriter(ArtifactWriter):
@@ -24,7 +24,7 @@ class LocalArtifactWriter(ArtifactWriter):
             self._handle = None
 
 
-class LocalStorageService(StorageServiceInterface):
+class LocalStorageService(StorageService):
     def __init__(self, base_path: pathlib.Path | str) -> None:
         super().__init__()
         self.base_path = pathlib.Path(base_path)
