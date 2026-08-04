@@ -3,9 +3,10 @@ import asyncio
 import json
 import os
 import sys
+from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from wtflow.config import Config
 from wtflow.discover import discover_workflows
