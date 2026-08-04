@@ -3,11 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from collections.abc import Generator
 from contextlib import closing, contextmanager
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, ClassVar, Generator, Protocol
+from typing import Any, ClassVar, Protocol
 from uuid import UUID
 
 import wtflow

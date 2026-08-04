@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Iterable
+from collections.abc import Callable, Iterable
 
 from wtflow.infra.nodes import TreeNode
 from wtflow.infra.workflow import Tree

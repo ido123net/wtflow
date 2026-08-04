@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import sys
 from abc import ABC, abstractmethod
+from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
-from typing import BinaryIO, Generator
+from typing import BinaryIO
 
 import wtflow
 from wtflow.services.base_service import BaseService

@@ -1,7 +1,7 @@
 import pathlib
+from collections.abc import Generator
 from contextlib import closing, contextmanager
 from io import BufferedWriter
-from typing import Generator
 
 import wtflow
 from wtflow.services.storage.storage_service import ArtifactWriter, StorageService
