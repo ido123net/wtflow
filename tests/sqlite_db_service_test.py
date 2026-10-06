@@ -18,8 +18,8 @@ async def test_with_db_config(db_config):
             ],
         ),
     )
-    engine = Engine(config=config)
-    assert await engine.run_workflow(wf) == 0
+    with Engine(config=config) as engine:
+        assert await engine.run_workflow(wf) == 0
 
 
 @pytest.mark.asyncio
@@ -34,5 +34,5 @@ async def test_with_db_and_storage_config(db_config, local_storage_config):
             ],
         ),
     )
-    engine = Engine(config=config)
-    assert await engine.run_workflow(wf) == 0
+    with Engine(config=config) as engine:
+        assert await engine.run_workflow(wf) == 0

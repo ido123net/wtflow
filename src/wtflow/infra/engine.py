@@ -6,6 +6,7 @@ import os
 import signal
 from enum import IntEnum
 from graphlib import TopologicalSorter
+from types import TracebackType
 
 from wtflow.config import Config
 from wtflow.infra.artifact import Artifact
@@ -125,8 +126,6 @@ class Executor:
 class Engine:
     def __init__(self, config: Config | None = None) -> None:
         self.config = config or Config()
-        self.db_service = self.config.database.create_db_service()
-        self.storage_service = self.config.storage.create_storage_service()
 
     async def run_workflow(self, workflow: Tree) -> int:
         graph = workflow.as_graph()
@@ -134,6 +133,26 @@ class Engine:
         executor = Executor(graph, self.db_service, self.storage_service)
         result = await executor.execute()
         return result
+
+    def start(self) -> None:
+        self.db_service = self.config.database.create_db_service()
+        self.storage_service = self.config.storage.create_storage_service()
+
+    def close(self) -> None:
+        self.db_service.close()
+        self.storage_service.close()
+
+    def __enter__(self) -> Engine:
+        self.start()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.close()
 
 
 def _cancel_tasks(tasks: list[asyncio.Task[NodeResult]]) -> None:

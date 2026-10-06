@@ -98,9 +98,9 @@ async def _cmd_run(
         print(json.dumps([asdict(workflow, dict_factory=_dict_factory) for workflow in wfs], indent=2))
         return 0
 
-    for wf in wfs:
-        engine = Engine(config=config)
-        res += await engine.run_workflow(workflow=wf)
+    with Engine(config=config) as engine:
+        for wf in wfs:
+            res += await engine.run_workflow(workflow=wf)
 
     return min(res, 1)
 
