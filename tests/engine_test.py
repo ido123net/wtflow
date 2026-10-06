@@ -26,8 +26,8 @@ async def test_run():
             ],
         ),
     )
-    engine = Engine()
-    await engine.run_workflow(wf)
+    with Engine() as engine:
+        await engine.run_workflow(wf)
 
 
 @pytest.mark.asyncio
@@ -39,8 +39,8 @@ async def test_fail_run(capfd):
             command="command-not-exist",
         ),
     )
-    engine = Engine()
-    assert await engine.run_workflow(wf) == ExitCode.FAIL
+    with Engine() as engine:
+        assert await engine.run_workflow(wf) == ExitCode.FAIL
     _, err = capfd.readouterr()
     assert "not found" in err
 
@@ -65,8 +65,8 @@ async def test_stop_on_failure(capfdbinary):
             ],
         ),
     )
-    engine = Engine(config=Config())
-    assert await engine.run_workflow(wf) == ExitCode.FAIL
+    with Engine(config=Config()) as engine:
+        assert await engine.run_workflow(wf) == ExitCode.FAIL
     out, _ = capfdbinary.readouterr()
     assert b"EXISTS" in out
     assert b"NOPE" not in out
@@ -82,9 +82,9 @@ async def test_timeout_node(capfdbinary):
             timeout=0.1,
         ),
     )
-    engine = Engine(Config())
     start_time = time.perf_counter()
-    assert await engine.run_workflow(wf) == ExitCode.FAIL
+    with Engine(config=Config()) as engine:
+        assert await engine.run_workflow(wf) == ExitCode.FAIL
     elapsed = time.perf_counter() - start_time
     assert elapsed < 0.2
     stdout, stderr = capfdbinary.readouterr()
@@ -104,8 +104,8 @@ async def test_with_storage_config(local_storage_config, data_dir):
             ],
         ),
     )
-    engine = Engine(config=config)
-    assert await engine.run_workflow(wf) == 0
+    with Engine(config=config) as engine:
+        assert await engine.run_workflow(wf) == 0
     log_path = data_dir / "test no db" / "Node 1" / "stdout.txt"
     assert log_path.exists()
     assert log_path.read_text() == "Hello\nworld\n"

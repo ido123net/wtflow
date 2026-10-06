@@ -33,6 +33,7 @@ line-length = 120
 
 [tool.ruff.lint]
 extend-select = ["I"]
+typing-extensions = false
 
 [tool.coverage.run]
 plugins = ["covdefaults"]
