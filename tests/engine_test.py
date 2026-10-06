@@ -57,7 +57,7 @@ async def test_stop_on_failure(capfdbinary):
                     name="Node 2",
                     children=[
                         TreeNode(name="Node 2.1", command='echo "World 2.1"'),
-                        TreeNode(name="Node 2.2", command="command-not-exist"),
+                        TreeNode(name="Node 2.2", command="sleep 0.01 && command-not-exist"),
                         TreeNode(name="Node 2.3", command='echo "EXISTS" && sleep 1 && echo "NOPE"'),
                     ],
                 ),
