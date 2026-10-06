@@ -12,7 +12,7 @@ from wtflow.infra.artifact import Artifact
 from wtflow.infra.info import ExecutionInfo, RunInfo
 from wtflow.infra.nodes import Node
 from wtflow.infra.workflow import Graph, Tree
-from wtflow.services.servicer import Servicer
+from wtflow.services.db.db_service import DBService
 from wtflow.services.storage.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
@@ -66,10 +66,10 @@ async def _read_stream(
 
 
 class Executor:
-    def __init__(self, graph: Graph, servicer: Servicer) -> None:
+    def __init__(self, graph: Graph, db_service: DBService, storage_service: StorageService) -> None:
         self.graph = graph
-        self.servicer = servicer
-        self.db_service = servicer.db_service
+        self.db_service = db_service
+        self.storage_service = storage_service
         self.run_info = RunInfo(graph=graph)
 
     async def execute(self) -> ExitCode:
@@ -119,18 +119,19 @@ class Executor:
     ) -> asyncio.Task[None]:
         artifact = Artifact(artifact_name)
         stream: asyncio.StreamReader = getattr(process, artifact_name)
-        return asyncio.create_task(_read_stream(self.servicer.storage_service, self.graph, node, stream, artifact))
+        return asyncio.create_task(_read_stream(self.storage_service, self.graph, node, stream, artifact))
 
 
 class Engine:
     def __init__(self, config: Config | None = None) -> None:
         self.config = config or Config()
-        self.servicer = Servicer.from_config(self.config)
+        self.db_service = self.config.database.create_db_service()
+        self.storage_service = self.config.storage.create_storage_service()
 
     async def run_workflow(self, workflow: Tree) -> int:
         graph = workflow.as_graph()
-        await self.servicer.db_service.save_graph(graph)
-        executor = Executor(graph, self.servicer)
+        await self.db_service.save_graph(graph)
+        executor = Executor(graph, self.db_service, self.storage_service)
         result = await executor.execute()
         return result
 
