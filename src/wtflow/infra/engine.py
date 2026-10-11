@@ -7,6 +7,7 @@ import signal
 from enum import IntEnum
 from graphlib import TopologicalSorter
 from types import TracebackType
+from typing import Self
 
 from wtflow.config import Config
 from wtflow.infra.artifact import Artifact
@@ -35,7 +36,7 @@ async def _wait_process(process: asyncio.subprocess.Process, timeout: float | No
     try:
         result = await asyncio.wait_for(process.wait(), timeout)
         return NodeResult.FAIL if result else NodeResult.SUCCESS
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return NodeResult.TIMEOUT
     except asyncio.CancelledError:
         return NodeResult.CANCEL
@@ -142,7 +143,7 @@ class Engine:
         self.db_service.close()
         self.storage_service.close()
 
-    def __enter__(self) -> Engine:
+    def __enter__(self) -> Self:
         self.start()
         return self
 

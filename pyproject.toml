@@ -3,7 +3,7 @@ name = "wtflow"
 description = "Asynchronous workflow runner"
 readme = "README.md"
 authors = [{ name = "Ido Frenkel", email = "ido123net@gmail.com" }]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 version = "0.6.0"
 
 [project.scripts]
@@ -33,7 +33,6 @@ line-length = 120
 
 [tool.ruff.lint]
 extend-select = ["I"]
-typing-extensions = false
 
 [tool.coverage.run]
 plugins = ["covdefaults"]
