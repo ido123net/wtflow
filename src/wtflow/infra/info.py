@@ -24,7 +24,7 @@ class SystemInfo:
 
 
 def _utcnow() -> datetime.datetime:
-    return datetime.datetime.now(tz=datetime.timezone.utc)
+    return datetime.datetime.now(tz=datetime.UTC)
 
 
 @dataclass(kw_only=True)
