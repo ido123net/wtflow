@@ -182,9 +182,9 @@ class Sqlite3DBService(DBService):
 
             conn.commit()
 
-    async def start_execution(self, run_info: RunInfo, execution_info: ExecutionInfo) -> None:
+    async def start_execution(self, execution_info: ExecutionInfo) -> None:
         node_digest = _digest(execution_info.node)
-        _run_id = self._run_ids[run_info.run_id]
+        _run_id = self._run_ids[execution_info.run_info.run_id]
 
         with self._get_connection() as conn:
             curser = conn.execute(
@@ -208,9 +208,9 @@ class Sqlite3DBService(DBService):
             assert curser.lastrowid
             self._execution_ids[execution_info.execution_id] = curser.lastrowid
 
-    async def finish_execution(self, run_info: RunInfo, execution_info: ExecutionInfo) -> None:
+    async def finish_execution(self, execution_info: ExecutionInfo) -> None:
         _id = self._execution_ids.pop(execution_info.execution_id)
-        _run_id = self._run_ids[run_info.run_id]
+        _run_id = self._run_ids[execution_info.run_info.run_id]
 
         with self._get_connection() as conn:
             conn.execute(

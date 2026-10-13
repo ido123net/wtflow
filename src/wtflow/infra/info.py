@@ -49,6 +49,6 @@ class RunInfo(Info):
 
 @dataclass(kw_only=True)
 class ExecutionInfo(Info):
-    graph: Graph
+    run_info: RunInfo
     node: Node
     execution_id: UUID = field(default_factory=uuid4)

@@ -75,8 +75,7 @@ class Executor:
         self.run_info = RunInfo(graph=graph)
 
     async def execute(self) -> ExitCode:
-        self.run_info.start()
-        await self.db_service.start_run(self.run_info)
+        await self.start()
         ts = TopologicalSorter(self.graph)
         ts.prepare()
         while ts.is_active():
@@ -87,18 +86,17 @@ class Executor:
                 if result:
                     _cancel_tasks(tasks)
                     return ExitCode.FAIL
-        self.run_info.end()
-        await self.db_service.finish_run(self.run_info)
+        await self.end()
         return ExitCode.SUCCESS
 
     async def execute_node(self, node: Node, ts: TopologicalSorter[Node]) -> NodeResult:
-        execution_info = ExecutionInfo(graph=self.graph, node=node)
+        execution_info = ExecutionInfo(run_info=self.run_info, node=node)
         execution_info.start()
-        await self.db_service.start_execution(self.run_info, execution_info)
+        await self.db_service.start_execution(execution_info)
         try:
             result = await self._execute_node(node)
             execution_info.end()
-            await self.db_service.finish_execution(self.run_info, execution_info)
+            await self.db_service.finish_execution(execution_info)
             return result
         finally:
             ts.done(node)
@@ -122,6 +120,14 @@ class Executor:
         artifact = Artifact(artifact_name)
         stream: asyncio.StreamReader = getattr(process, artifact_name)
         return asyncio.create_task(_read_stream(self.storage_service, self.graph, node, stream, artifact))
+
+    async def start(self) -> None:
+        self.run_info.start()
+        await self.db_service.start_run(self.run_info)
+
+    async def end(self) -> None:
+        self.run_info.end()
+        await self.db_service.finish_run(self.run_info)
 
 
 class Engine:
