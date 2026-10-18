@@ -4,8 +4,8 @@ import pytest
 
 from wtflow.config import Config
 from wtflow.infra.engine import Engine, ExitCode
-from wtflow.infra.nodes import TreeNode
-from wtflow.infra.workflow import Tree
+from wtflow.infra.nodes import Node, TreeNode
+from wtflow.infra.workflow import Graph, Tree
 
 
 @pytest.mark.asyncio
@@ -109,3 +109,25 @@ async def test_with_storage_config(local_storage_config, data_dir):
     log_path = data_dir / "test no db" / "Node 1" / "stdout.txt"
     assert log_path.exists()
     assert log_path.read_text() == "Hello\nworld\n"
+
+
+@pytest.mark.asyncio
+async def test_long_with_short(capfdbinary):
+    n1 = Node(name="n1", command="echo 1")
+    n2 = Node(name="n2", command="sleep 0.1 && echo 2")
+    n3 = Node(name="n3", command="sleep 0.01 && echo 3")
+    n4 = Node(name="n4", command="echo 4")
+    graph = Graph(
+        name="test_long_with_short",
+        nodes=(n1, n2, n3, n4),
+        edges=(
+            (n1, n2),
+            (n1, n3),
+            (n3, n4),
+        ),
+    )
+    with Engine(config=Config()) as engine:
+        await engine.run_graph(graph)
+    stdout, stderr = capfdbinary.readouterr()
+    assert stderr == b""
+    assert stdout == b"1\n3\n4\n2\n"
