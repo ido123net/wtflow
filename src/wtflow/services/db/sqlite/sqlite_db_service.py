@@ -219,12 +219,14 @@ class Sqlite3DBService(DBService):
                 SET
                     start_time = ?,
                     end_time = ?,
+                    retcode = ?,
                     result = ?
                 WHERE id = ? AND run_id = ?
                 """,
                 (
                     execution_info.start_time,
                     execution_info.end_time,
+                    execution_info.retcode,
                     execution_info.result,
                     _id,
                     _run_id,
@@ -311,6 +313,7 @@ class Sqlite3DBService(DBService):
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id INTEGER NOT NULL,
                     node_digest TEXT NOT NULL,
+                    retcode INTEGER,
                     result INTEGER,
                     start_time TEXT,
                     end_time TEXT,
