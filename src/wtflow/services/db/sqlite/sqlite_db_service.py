@@ -20,9 +20,9 @@ class Dataclass(Protocol):
     __dataclass_fields__: ClassVar[dict[str, Any]]
 
 
-def _digest(node: Dataclass) -> str:
+def digest(obj: Dataclass) -> str:
     data = json.dumps(
-        asdict(node),
+        asdict(obj),
         sort_keys=True,
         separators=(",", ":"),
     )
@@ -51,9 +51,9 @@ class Sqlite3DBService(DBService):
         return dt.isoformat()
 
     async def save_graph(self, graph: wtflow.Graph) -> None:
-        graph_digest = _digest(graph)
+        graph_digest = digest(graph)
 
-        node_digests = {node: _digest(node) for node in graph.nodes}
+        node_digests = {node: digest(node) for node in graph.nodes}
 
         with self._get_connection() as conn:
             conn.execute(
@@ -125,7 +125,7 @@ class Sqlite3DBService(DBService):
             conn.commit()
 
     async def start_run(self, run_info: RunInfo) -> None:
-        graph_digest = _digest(run_info.graph)
+        graph_digest = digest(run_info.graph)
         system_info = run_info.system_info
 
         with self._get_connection() as conn:
@@ -183,7 +183,7 @@ class Sqlite3DBService(DBService):
             conn.commit()
 
     async def start_execution(self, execution_info: ExecutionInfo) -> None:
-        node_digest = _digest(execution_info.node)
+        node_digest = digest(execution_info.node)
         _run_id = self._run_ids[execution_info.run_info.run_id]
 
         with self._get_connection() as conn:
@@ -218,12 +218,14 @@ class Sqlite3DBService(DBService):
                 UPDATE executions
                 SET
                     start_time = ?,
-                    end_time = ?
+                    end_time = ?,
+                    result = ?
                 WHERE id = ? AND run_id = ?
                 """,
                 (
                     execution_info.start_time,
                     execution_info.end_time,
+                    execution_info.result,
                     _id,
                     _run_id,
                 ),
@@ -309,6 +311,7 @@ class Sqlite3DBService(DBService):
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id INTEGER NOT NULL,
                     node_digest TEXT NOT NULL,
+                    result INTEGER,
                     start_time TEXT,
                     end_time TEXT,
 

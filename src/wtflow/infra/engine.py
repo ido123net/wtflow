@@ -38,8 +38,6 @@ async def _wait_process(process: asyncio.subprocess.Process, timeout: float | No
         return NodeResult.FAIL if result else NodeResult.SUCCESS
     except TimeoutError:
         return NodeResult.TIMEOUT
-    except asyncio.CancelledError:
-        return NodeResult.CANCEL
     finally:
         if process.returncode is None:
             os.killpg(os.getpgid(process.pid), signal.SIGTERM)
@@ -74,7 +72,7 @@ class Executor:
         self.storage_service = storage_service
         self.run_info = RunInfo(graph=graph)
         self.ts = TopologicalSorter(self.graph)
-        self._running = False
+        self._failing_tasks = 0
         self._running_tasks: set[asyncio.Task[tuple[Node, NodeResult]]] = set()
 
     def _start_ready_nodes(self) -> None:
@@ -86,32 +84,42 @@ class Executor:
         for done_task in done_tasks:
             node, result = await done_task
             self.ts.done(node)
-            if result:
-                return True
+            if result is not NodeResult.SUCCESS:
+                self._failing_tasks += 1
 
         self._running_tasks = self._running_tasks - done_tasks
 
-        return not (self.ts.is_active() or self._running_tasks)
+        return self._failing_tasks > 0 or not (self.ts.is_active() or self._running_tasks)
+
+    async def _cancel_running(self) -> None:
+        for task in self._running_tasks:
+            task.cancel()
+        await asyncio.gather(*self._running_tasks, return_exceptions=True)
+        self._running_tasks.clear()
 
     async def execute(self) -> ExitCode:
         self.ts.prepare()
-        self._running = True
 
         await self.start()
         while True:
             if await self._is_done():
+                await self._cancel_running()
                 break
             self._start_ready_nodes()
             await asyncio.sleep(0.001)
-
         await self.end()
-        return ExitCode.SUCCESS if not self._running_tasks else ExitCode.FAIL
+
+        return ExitCode.FAIL if self._failing_tasks > 0 else ExitCode.SUCCESS
 
     async def execute_node(self, node: Node) -> tuple[Node, NodeResult]:
         execution_info = ExecutionInfo(run_info=self.run_info, node=node)
         execution_info.start()
         await self.db_service.start_execution(execution_info)
-        result = await self._execute_node(node)
+        try:
+            result = await self._execute_node(node)
+        except asyncio.CancelledError:
+            result = NodeResult.CANCEL
+        execution_info.result = result
         execution_info.end()
         await self.db_service.finish_execution(execution_info)
         return node, result
@@ -121,20 +129,13 @@ class Executor:
             return NodeResult.SUCCESS
 
         process = await _start_process(node.command)
-        stream_tasks = [self._stream_task(node, process, artifact_name) for artifact_name in ("stdout", "stderr")]
-        result = await _wait_process(process, node.timeout)
-        await asyncio.gather(*stream_tasks)
-        return result
-
-    def _stream_task(
-        self,
-        node: Node,
-        process: asyncio.subprocess.Process,
-        artifact_name: str,
-    ) -> asyncio.Task[None]:
-        artifact = Artifact(artifact_name)
-        stream: asyncio.StreamReader = getattr(process, artifact_name)
-        return asyncio.create_task(_read_stream(self.storage_service, self.graph, node, stream, artifact))
+        async with asyncio.TaskGroup() as tg:
+            for artifact_name in ("stdout", "stderr"):
+                artifact = Artifact(artifact_name)
+                stream: asyncio.StreamReader = getattr(process, artifact_name)
+                tg.create_task(_read_stream(self.storage_service, self.graph, node, stream, artifact))
+            result = tg.create_task(_wait_process(process, node.timeout))
+        return await result
 
     async def start(self) -> None:
         self.run_info.start()
@@ -151,6 +152,9 @@ class Engine:
 
     async def run_workflow(self, workflow: Tree) -> int:
         graph = workflow.as_graph()
+        return await self.run_graph(graph)
+
+    async def run_graph(self, graph: Graph) -> int:
         await self.db_service.save_graph(graph)
         executor = Executor(graph, self.db_service, self.storage_service)
         result = await executor.execute()

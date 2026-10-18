@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
+    from wtflow.infra.engine import NodeResult
     from wtflow.infra.nodes import Node
     from wtflow.infra.workflow import Graph
 
@@ -51,4 +52,5 @@ class RunInfo(Info):
 class ExecutionInfo(Info):
     run_info: RunInfo
     node: Node
+    result: NodeResult | None = None
     execution_id: UUID = field(default_factory=uuid4)
