@@ -73,33 +73,48 @@ class Executor:
         self.db_service = db_service
         self.storage_service = storage_service
         self.run_info = RunInfo(graph=graph)
+        self.ts = TopologicalSorter(self.graph)
+        self._running = False
+        self._running_tasks: set[asyncio.Task[tuple[Node, NodeResult]]] = set()
+
+    def _start_ready_nodes(self) -> None:
+        for ready_node in self.ts.get_ready():
+            self._running_tasks.add(asyncio.create_task(self.execute_node(ready_node)))
+
+    async def _is_done(self) -> bool:
+        done_tasks = {task for task in self._running_tasks if task.done()}
+        for done_task in done_tasks:
+            node, result = await done_task
+            self.ts.done(node)
+            if result:
+                return True
+
+        self._running_tasks = self._running_tasks - done_tasks
+
+        return not (self.ts.is_active() or self._running_tasks)
 
     async def execute(self) -> ExitCode:
-        await self.start()
-        ts = TopologicalSorter(self.graph)
-        ts.prepare()
-        while ts.is_active():
-            ready_nodes = ts.get_ready()
-            tasks = [asyncio.create_task(self.execute_node(node, ts)) for node in ready_nodes]
-            for future_result in asyncio.as_completed(tasks):
-                result = await future_result
-                if result:
-                    _cancel_tasks(tasks)
-                    return ExitCode.FAIL
-        await self.end()
-        return ExitCode.SUCCESS
+        self.ts.prepare()
+        self._running = True
 
-    async def execute_node(self, node: Node, ts: TopologicalSorter[Node]) -> NodeResult:
+        await self.start()
+        while True:
+            if await self._is_done():
+                break
+            self._start_ready_nodes()
+            await asyncio.sleep(0.001)
+
+        await self.end()
+        return ExitCode.SUCCESS if not self._running_tasks else ExitCode.FAIL
+
+    async def execute_node(self, node: Node) -> tuple[Node, NodeResult]:
         execution_info = ExecutionInfo(run_info=self.run_info, node=node)
         execution_info.start()
         await self.db_service.start_execution(execution_info)
-        try:
-            result = await self._execute_node(node)
-            execution_info.end()
-            await self.db_service.finish_execution(execution_info)
-            return result
-        finally:
-            ts.done(node)
+        result = await self._execute_node(node)
+        execution_info.end()
+        await self.db_service.finish_execution(execution_info)
+        return node, result
 
     async def _execute_node(self, node: Node) -> NodeResult:
         if not node.command:
@@ -160,8 +175,3 @@ class Engine:
         exc_tb: TracebackType | None,
     ) -> None:
         self.close()
-
-
-def _cancel_tasks(tasks: list[asyncio.Task[NodeResult]]) -> None:
-    for task in tasks:
-        task.cancel()
