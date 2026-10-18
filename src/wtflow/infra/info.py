@@ -5,7 +5,8 @@ import os
 import platform
 import socket
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from types import TracebackType
+from typing import TYPE_CHECKING, Self
 from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
@@ -39,6 +40,18 @@ class Info:
     def end(self) -> None:
         self.end_time = _utcnow()
 
+    def __enter__(self) -> Self:
+        self.start()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.end()
+
 
 @dataclass(kw_only=True)
 class RunInfo(Info):
@@ -52,5 +65,6 @@ class RunInfo(Info):
 class ExecutionInfo(Info):
     run_info: RunInfo
     node: Node
+    retcode: int | None = None
     result: NodeResult | None = None
     execution_id: UUID = field(default_factory=uuid4)
