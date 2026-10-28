@@ -4,6 +4,11 @@ repos:
     hooks:
       - id: ruff-check
       - id: ruff-format
+  - repo: https://github.com/astral-sh/ty-pre-commit
+    rev: v0.0.84
+    hooks:
+      - id: ty
+        args: [--no-default-groups]
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v2.4.0
     hooks:
