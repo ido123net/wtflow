@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from types import FunctionType
 
 from wtflow.infra.nodes import TreeNode
 from wtflow.infra.workflow import Tree
@@ -14,6 +15,7 @@ def wf(
     name: str | None = None,
 ) -> Callable[[Callable[[], TreeNode]], None]:
     def decorator(func: Callable[[], Tree | TreeNode | Iterable[TreeNode]]) -> None:
+        assert isinstance(func, FunctionType)
         res = func()
         if isinstance(res, Tree):
             _add_workflow(res)
